@@ -89,6 +89,7 @@ export interface Suggestion {
   country: string | null;
   website: string | null;
   artist: string | null;
+  event_dates: string | null;
   source_url: string | null;
   already_in_pipeline: boolean;
   matched_venue_id: number | null;

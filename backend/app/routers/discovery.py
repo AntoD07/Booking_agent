@@ -12,6 +12,7 @@ from app.models import Artist, Venue, VenueArtist, VenueStatus
 from app.schemas import (
     DiscoveryOut,
     DiscoveryRequest,
+    GeneralScanRequest,
     SuggestionAccept,
     SuggestionOut,
     VenueOut,
@@ -25,14 +26,17 @@ router = APIRouter(
 )
 
 
-@router.post("", response_model=DiscoveryOut)
-def discover(payload: DiscoveryRequest, db: Session = Depends(get_db)) -> DiscoveryOut:
+def _require_api_key() -> None:
     if not anthropic_api_key():
         raise HTTPException(
             status_code=503, detail="ANTHROPIC_API_KEY is not configured"
         )
+
+
+def _run(scan) -> list[dict]:
+    """Run a scan callable, mapping Claude failures to HTTP errors."""
     try:
-        found = discovery.run_discovery(payload.artists)
+        return scan()
     except discovery.DiscoveryError as exc:
         raise HTTPException(status_code=502, detail=f"Discovery failed: {exc}")
     except anthropic.APIStatusError as exc:
@@ -40,15 +44,8 @@ def discover(payload: DiscoveryRequest, db: Session = Depends(get_db)) -> Discov
     except anthropic.APIConnectionError:
         raise HTTPException(status_code=502, detail="Could not reach the Claude API")
 
-    # Record the scan time on artists we know, so the picker can show when
-    # each one was last scouted. Free-text names only get a row on accept.
-    scanned = {name.lower() for name in payload.artists}
-    now = datetime.now(timezone.utc)
-    for artist in db.scalars(select(Artist)):
-        if artist.name.lower() in scanned:
-            artist.last_scanned = now
-    db.commit()
 
+def _with_pipeline_matches(found: list[dict], db: Session) -> DiscoveryOut:
     existing = [(v.id, v.name) for v in db.scalars(select(Venue))]
     suggestions = []
     for item in found:
@@ -64,26 +61,62 @@ def discover(payload: DiscoveryRequest, db: Session = Depends(get_db)) -> Discov
     return DiscoveryOut(suggestions=suggestions)
 
 
+@router.post("", response_model=DiscoveryOut)
+def discover(payload: DiscoveryRequest, db: Session = Depends(get_db)) -> DiscoveryOut:
+    """Scan the circuit of 1-5 reference artists for venues they played."""
+    _require_api_key()
+    found = _run(lambda: discovery.run_discovery(payload.artists))
+
+    # Record the scan time on artists we know, so the picker can show when
+    # each one was last scouted. Free-text names only get a row on accept.
+    scanned = {name.lower() for name in payload.artists}
+    now = datetime.now(timezone.utc)
+    for artist in db.scalars(select(Artist)):
+        if artist.name.lower() in scanned:
+            artist.last_scanned = now
+    db.commit()
+
+    return _with_pipeline_matches(found, db)
+
+
+@router.post("/general", response_model=DiscoveryOut)
+def general_scan(
+    payload: GeneralScanRequest, db: Session = Depends(get_db)
+) -> DiscoveryOut:
+    """Scan a region for festivals/venues of a given type over a period."""
+    _require_api_key()
+    found = _run(
+        lambda: discovery.run_general_discovery(
+            payload.region, payload.event_type, payload.period
+        )
+    )
+    return _with_pipeline_matches(found, db)
+
+
 @router.post("/accept", response_model=VenueOut, status_code=201)
 def accept_suggestion(
     payload: SuggestionAccept, db: Session = Depends(get_db)
 ) -> Venue:
     """Turn a reviewed suggestion into a pipeline venue.
 
-    The venue enters as Discovered with the artist hook as its source, and
-    the reference artist is linked (created by name if needed).
+    The venue enters as Discovered. The source is the caller-provided scan
+    label when given, otherwise the artist hook; a reference artist, when
+    present, is linked (created by name if needed).
     """
-    source = (
-        f"Scouting — {payload.artist} played here" if payload.artist else "Scouting"
-    )
-    notes = f"Found via reference-artist scouting.\nSource: {payload.source_url}" \
-        if payload.source_url else None
+    if payload.source:
+        source = payload.source.strip()
+    elif payload.artist:
+        source = f"Scouting — {payload.artist} played here"
+    else:
+        source = "Scouting"
+    notes = f"Source: {payload.source_url}" if payload.source_url else None
     venue = Venue(
         name=payload.name,
         type=payload.type,
         city=payload.city,
         country=payload.country,
         website=payload.website,
+        event_dates=payload.event_dates,
         status=VenueStatus.discovered,
         source=source,
         research_notes=notes,

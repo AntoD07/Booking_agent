@@ -224,6 +224,114 @@ def test_accept_reuses_existing_artist(auth_client):
     assert len(auth_client.get("/api/artists").json()) == 1
 
 
+GENERAL_REPLY = """\
+Here is what is programmed in that region.
+
+```json
+[
+  {
+    "name": "Jazz in Marciac",
+    "type": "festival",
+    "city": "Marciac",
+    "country": "France",
+    "website": "https://www.jazzinmarciac.com",
+    "event_dates": "Late July to mid-August 2027",
+    "source_url": "https://example.com/marciac-2027"
+  },
+  {
+    "name": "Le Petit Duc",
+    "type": "venue",
+    "city": "Aix-en-Provence",
+    "country": "France",
+    "website": null,
+    "event_dates": null,
+    "source_url": null
+  }
+]
+```"""
+
+
+def test_general_scan_returns_suggestions(auth_client, api_key, monkeypatch):
+    prompts = []
+
+    def fake_create(client, messages):
+        prompts.append(messages[0]["content"])
+        return _response(GENERAL_REPLY)
+
+    monkeypatch.setattr(discovery, "_create_message", fake_create)
+    response = auth_client.post(
+        "/api/discovery/general",
+        json={
+            "region": "south of France",
+            "event_type": "festival",
+            "period": "summer 2027",
+        },
+    )
+    assert response.status_code == 200
+    suggestions = response.json()["suggestions"]
+    assert [s["name"] for s in suggestions] == ["Jazz in Marciac", "Le Petit Duc"]
+    assert suggestions[0]["event_dates"] == "Late July to mid-August 2027"
+    assert suggestions[0]["artist"] is None
+    # The form parameters shape the prompt
+    assert "festivals" in prompts[0]
+    assert "south of France" in prompts[0]
+    assert "during summer 2027" in prompts[0]
+
+
+def test_general_scan_marks_venues_already_in_pipeline(
+    auth_client, api_key, monkeypatch
+):
+    created = auth_client.post("/api/venues", json={"name": "Jazz in Marciac"})
+    assert created.status_code == 201
+
+    monkeypatch.setattr(
+        discovery, "_create_message", lambda client, messages: _response(GENERAL_REPLY)
+    )
+    response = auth_client.post(
+        "/api/discovery/general", json={"region": "Occitanie"}
+    )
+    assert response.status_code == 200
+    suggestions = {s["name"]: s for s in response.json()["suggestions"]}
+    assert suggestions["Jazz in Marciac"]["already_in_pipeline"] is True
+    assert suggestions["Le Petit Duc"]["already_in_pipeline"] is False
+
+
+def test_general_scan_requires_region(auth_client, api_key):
+    assert (
+        auth_client.post("/api/discovery/general", json={"region": "  "}).status_code
+        == 422
+    )
+
+
+def test_general_scan_requires_api_key(auth_client, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    response = auth_client.post(
+        "/api/discovery/general", json={"region": "Belgium"}
+    )
+    assert response.status_code == 503
+
+
+def test_accept_with_scan_source_and_event_dates(auth_client):
+    response = auth_client.post(
+        "/api/discovery/accept",
+        json={
+            "name": "Jazz in Marciac",
+            "type": "festival",
+            "city": "Marciac",
+            "country": "France",
+            "event_dates": "Late July to mid-August 2027",
+            "source": "General scan — festivals in the south of France",
+            "source_url": "https://example.com/marciac-2027",
+        },
+    )
+    assert response.status_code == 201
+    venue = response.json()
+    assert venue["status"] == "discovered"
+    assert venue["source"] == "General scan — festivals in the south of France"
+    assert venue["event_dates"] == "Late July to mid-August 2027"
+    assert venue["artists"] == []
+
+
 def test_accept_without_artist(auth_client):
     response = auth_client.post(
         "/api/discovery/accept", json={"name": "Le Petit Duc"}

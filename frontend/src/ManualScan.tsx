@@ -4,12 +4,20 @@ import {
   acceptSuggestion,
   discoverVenues,
   fetchArtists,
+  generalScan,
 } from "./api";
-import { TYPE_LABELS, type Artist, type Suggestion } from "./types";
+import {
+  TYPE_LABELS,
+  VENUE_TYPES,
+  type Artist,
+  type Suggestion,
+  type VenueType,
+} from "./types";
 import "./ManualScan.css";
 
 const MAX_ARTISTS = 5;
 
+type Mode = "artists" | "general";
 type ReviewState = "pending" | "accepting" | "accepted" | "dismissed";
 
 function formatScanned(iso: string | null): string {
@@ -29,16 +37,28 @@ interface ManualScanProps {
 }
 
 export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) {
+  const [mode, setMode] = useState<Mode>("artists");
+
+  // By-artist form
   const [artists, setArtists] = useState<Artist[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   // Free-text names not (yet) in the artists table, always part of the scan.
   const [extras, setExtras] = useState<string[]>([]);
   const [extraInput, setExtraInput] = useState("");
+
+  // General form
+  const [region, setRegion] = useState("");
+  const [eventType, setEventType] = useState<VenueType | "">("");
+  const [period, setPeriod] = useState("");
+
+  // Shared scan + review state
   const [scanning, setScanning] = useState(false);
   const [scanned, setScanned] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [review, setReview] = useState<ReviewState[]>([]);
+  // Source label written on accepted venues; null lets the artist hook apply.
+  const [acceptSource, setAcceptSource] = useState<string | null>(null);
 
   const loadArtists = () => {
     fetchArtists()
@@ -90,21 +110,15 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
     setExtraInput("");
   };
 
-  const runScan = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (chosen.length === 0 || scanning) {
-      return;
-    }
+  const runScan = async (scan: () => Promise<{ suggestions: Suggestion[] }>) => {
     setScanning(true);
     setError(null);
     setSuggestions([]);
     try {
-      const result = await discoverVenues(chosen);
+      const result = await scan();
       setSuggestions(result.suggestions);
       setReview(result.suggestions.map(() => "pending"));
       setScanned(true);
-      // The scan stamped last_scanned on the selected artists.
-      loadArtists();
     } catch (err) {
       handleError(err);
     } finally {
@@ -112,12 +126,43 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
     }
   };
 
+  const runArtistScan = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (chosen.length === 0 || scanning) {
+      return;
+    }
+    setAcceptSource(null); // let the backend write the artist hook
+    await runScan(() => discoverVenues(chosen));
+    // The scan stamped last_scanned on the selected artists.
+    loadArtists();
+  };
+
+  const runGeneralScan = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!region.trim() || scanning) {
+      return;
+    }
+    const what = eventType ? TYPE_LABELS[eventType].toLowerCase() + "s" : "events";
+    setAcceptSource(
+      `General scan — ${what} in ${region.trim()}${
+        period.trim() ? `, ${period.trim()}` : ""
+      }`,
+    );
+    await runScan(() =>
+      generalScan({
+        region: region.trim(),
+        event_type: eventType || null,
+        period: period.trim() || null,
+      }),
+    );
+  };
+
   const accept = async (index: number) => {
     setReview((states) =>
       states.map((s, i) => (i === index ? "accepting" : s)),
     );
     try {
-      await acceptSuggestion(suggestions[index]);
+      await acceptSuggestion(suggestions[index], acceptSource);
       setReview((states) =>
         states.map((s, i) => (i === index ? "accepted" : s)),
       );
@@ -152,99 +197,181 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
       </header>
 
       <main className="scan-main">
-        <p className="scan-lede">
-          Follow the artists we admire — every stage they have played is a
-          lead for us. Choose up to {MAX_ARTISTS} reference artists and Claude
-          will search the manouche and swing circuit for the venues behind
-          their tour dates.
-        </p>
-
-        <form className="scan-form" onSubmit={runScan}>
-          <fieldset className="scan-artists">
-            <legend className="scan-label">Reference artists</legend>
-            {artists.length === 0 && extras.length === 0 && (
-              <p className="scan-empty-list">
-                No artists in the table yet — add a name below.
-              </p>
-            )}
-            {artists.map((artist) => {
-              const checked = selected.includes(artist.name);
-              return (
-                <label
-                  className={`scan-artist${checked ? " is-checked" : ""}`}
-                  key={artist.id}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    disabled={!checked && full}
-                    onChange={() => toggleArtist(artist.name)}
-                  />
-                  <span className="scan-artist-name">{artist.name}</span>
-                  <span className="scan-artist-scanned">
-                    {formatScanned(artist.last_scanned)}
-                  </span>
-                </label>
-              );
-            })}
-            {extras.map((name) => (
-              <label className="scan-artist is-checked" key={name}>
-                <input
-                  type="checkbox"
-                  checked
-                  onChange={() =>
-                    setExtras((names) => names.filter((n) => n !== name))
-                  }
-                />
-                <span className="scan-artist-name">{name}</span>
-                <span className="scan-artist-scanned">New name</span>
-              </label>
-            ))}
-          </fieldset>
-
-          <div className="scan-extra">
-            <input
-              className="scan-input"
-              value={extraInput}
-              onChange={(e) => setExtraInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addExtra();
-                }
-              }}
-              placeholder="Another band, not in the list"
-              aria-label="Add an artist by name"
-              disabled={full}
-            />
-            <button
-              className="scan-extra-add"
-              type="button"
-              onClick={addExtra}
-              disabled={!extraInput.trim() || full}
-            >
-              Add
-            </button>
-          </div>
-
+        <div className="scan-modes" role="tablist" aria-label="Research method">
           <button
-            className="scan-submit"
-            type="submit"
-            disabled={scanning || chosen.length === 0}
+            className={`scan-mode${mode === "artists" ? " is-active" : ""}`}
+            role="tab"
+            aria-selected={mode === "artists"}
+            onClick={() => setMode("artists")}
           >
-            {scanning
-              ? "Scanning…"
-              : chosen.length === 0
-                ? "Scan"
-                : `Scan ${chosen.length} ${
-                    chosen.length === 1 ? "artist" : "artists"
-                  }`}
+            By artist
           </button>
-        </form>
+          <button
+            className={`scan-mode${mode === "general" ? " is-active" : ""}`}
+            role="tab"
+            aria-selected={mode === "general"}
+            onClick={() => setMode("general")}
+          >
+            By region
+          </button>
+        </div>
+
+        {mode === "artists" ? (
+          <>
+            <p className="scan-lede">
+              Follow the artists we admire — every stage they have played is
+              a lead for us. Choose up to {MAX_ARTISTS} reference artists and
+              Claude will search the manouche and swing circuit for the
+              venues behind their tour dates.
+            </p>
+
+            <form className="scan-form" onSubmit={runArtistScan}>
+              <fieldset className="scan-artists">
+                <legend className="scan-label">Reference artists</legend>
+                {artists.length === 0 && extras.length === 0 && (
+                  <p className="scan-empty-list">
+                    No artists in the table yet — add a name below.
+                  </p>
+                )}
+                {artists.map((artist) => {
+                  const checked = selected.includes(artist.name);
+                  return (
+                    <label
+                      className={`scan-artist${checked ? " is-checked" : ""}`}
+                      key={artist.id}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={!checked && full}
+                        onChange={() => toggleArtist(artist.name)}
+                      />
+                      <span className="scan-artist-name">{artist.name}</span>
+                      <span className="scan-artist-scanned">
+                        {formatScanned(artist.last_scanned)}
+                      </span>
+                    </label>
+                  );
+                })}
+                {extras.map((name) => (
+                  <label className="scan-artist is-checked" key={name}>
+                    <input
+                      type="checkbox"
+                      checked
+                      onChange={() =>
+                        setExtras((names) => names.filter((n) => n !== name))
+                      }
+                    />
+                    <span className="scan-artist-name">{name}</span>
+                    <span className="scan-artist-scanned">New name</span>
+                  </label>
+                ))}
+              </fieldset>
+
+              <div className="scan-extra">
+                <input
+                  className="scan-input"
+                  value={extraInput}
+                  onChange={(e) => setExtraInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addExtra();
+                    }
+                  }}
+                  placeholder="Another band, not in the list"
+                  aria-label="Add an artist by name"
+                  disabled={full}
+                />
+                <button
+                  className="scan-extra-add"
+                  type="button"
+                  onClick={addExtra}
+                  disabled={!extraInput.trim() || full}
+                >
+                  Add
+                </button>
+              </div>
+
+              <button
+                className="scan-submit"
+                type="submit"
+                disabled={scanning || chosen.length === 0}
+              >
+                {scanning
+                  ? "Scanning…"
+                  : chosen.length === 0
+                    ? "Scan"
+                    : `Scan ${chosen.length} ${
+                        chosen.length === 1 ? "artist" : "artists"
+                      }`}
+              </button>
+            </form>
+          </>
+        ) : (
+          <>
+            <p className="scan-lede">
+              Cast a wider net — search a region for festivals and stages of
+              a given kind over a period, whether or not our reference
+              artists have played them.
+            </p>
+
+            <form className="scan-form" onSubmit={runGeneralScan}>
+              <label className="scan-field">
+                <span className="scan-label">Region</span>
+                <input
+                  className="scan-input"
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value)}
+                  placeholder="e.g. south of France, Flanders, Bavaria"
+                  required
+                />
+              </label>
+              <label className="scan-field">
+                <span className="scan-label">
+                  Event type <span className="scan-optional">optional</span>
+                </span>
+                <select
+                  className="scan-select"
+                  value={eventType}
+                  onChange={(e) =>
+                    setEventType(e.target.value as VenueType | "")
+                  }
+                >
+                  <option value="">Any kind of stage</option>
+                  {VENUE_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {TYPE_LABELS[type]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="scan-field">
+                <span className="scan-label">
+                  Period <span className="scan-optional">optional</span>
+                </span>
+                <input
+                  className="scan-input"
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                  placeholder="e.g. summer 2027, next spring"
+                />
+              </label>
+
+              <button
+                className="scan-submit"
+                type="submit"
+                disabled={scanning || !region.trim()}
+              >
+                {scanning ? "Scanning…" : "Scan the region"}
+              </button>
+            </form>
+          </>
+        )}
 
         {scanning && (
           <p className="scan-status">
-            Claude is searching the circuit — this can take a minute or two.
+            Claude is searching — this can take a minute or two.
           </p>
         )}
         {error && <p className="scan-error">{error}</p>}
@@ -279,6 +406,9 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
                     <p className="suggestion-artist">
                       {suggestion.artist} played here
                     </p>
+                  )}
+                  {suggestion.event_dates && (
+                    <p className="suggestion-dates">{suggestion.event_dates}</p>
                   )}
                   {(suggestion.website || suggestion.source_url) && (
                     <p className="suggestion-links">

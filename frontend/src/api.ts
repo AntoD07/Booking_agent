@@ -1,4 +1,10 @@
-import type { Artist, Suggestion, Venue, VenueInput } from "./types";
+import type {
+  Artist,
+  Suggestion,
+  Venue,
+  VenueInput,
+  VenueType,
+} from "./types";
 
 export class UnauthorizedError extends Error {}
 
@@ -84,7 +90,25 @@ export function discoverVenues(
   });
 }
 
-export function acceptSuggestion(suggestion: Suggestion): Promise<Venue> {
+export interface GeneralScanParams {
+  region: string;
+  event_type: VenueType | null;
+  period: string | null;
+}
+
+export function generalScan(
+  params: GeneralScanParams,
+): Promise<{ suggestions: Suggestion[] }> {
+  return request("/api/discovery/general", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+}
+
+export function acceptSuggestion(
+  suggestion: Suggestion,
+  source: string | null = null,
+): Promise<Venue> {
   return request("/api/discovery/accept", {
     method: "POST",
     body: JSON.stringify({
@@ -94,7 +118,9 @@ export function acceptSuggestion(suggestion: Suggestion): Promise<Venue> {
       country: suggestion.country,
       website: suggestion.website,
       artist: suggestion.artist,
+      event_dates: suggestion.event_dates,
       source_url: suggestion.source_url,
+      source,
     }),
   });
 }

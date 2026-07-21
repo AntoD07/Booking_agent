@@ -46,6 +46,36 @@ Return 8 to 15 suggestions. End your reply with ONLY a JSON array inside a
 Do not invent venues; only include places you found evidence for.
 """
 
+_GENERAL_PROMPT = """\
+We are a gypsy jazz (jazz manouche) quartet booking our 2027 season in
+Europe. Find {what} in {region}{period_clause} that could book a band
+like ours — places with a jazz, swing, or acoustic-music programme.
+
+Use web search to find real, current listings — festival calendars, venue
+programmes, cultural agendas, event announcements. Only include places in
+Europe.
+
+Return 8 to 15 suggestions. End your reply with ONLY a JSON array inside a
+```json code fence, one object per venue, with exactly these keys:
+- "name": the venue or festival name
+- "type": one of "festival", "venue", "jazz_club", "bar", "cultural_center"
+- "city": city, or null
+- "country": country name in English, or null
+- "website": the venue's own website URL, or null
+- "event_dates": when the event or season takes place, as free text, or null
+- "source_url": URL of the page documenting the event, or null
+
+Do not invent venues; only include places you found evidence for.
+"""
+
+_TYPE_PHRASES = {
+    VenueType.festival: "festivals",
+    VenueType.venue: "concert venues",
+    VenueType.jazz_club: "jazz clubs",
+    VenueType.bar: "bars with live music",
+    VenueType.cultural_center: "cultural centers",
+}
+
 
 class DiscoveryError(Exception):
     """Claude replied, but not with a usable suggestion list."""
@@ -68,12 +98,25 @@ def _create_message(client: anthropic.Anthropic, messages: list) -> anthropic.ty
 
 
 def run_discovery(artist_names: list[str]) -> list[dict]:
-    client = anthropic.Anthropic(api_key=anthropic_api_key())
     if len(artist_names) > 1:
         joined = ", ".join(artist_names[:-1]) + " and " + artist_names[-1]
     else:
         joined = artist_names[0]
-    prompt = _PROMPT.format(artists=joined)
+    return _run_prompt(_PROMPT.format(artists=joined))
+
+
+def run_general_discovery(
+    region: str, event_type: VenueType | None, period: str | None
+) -> list[dict]:
+    what = _TYPE_PHRASES.get(event_type, "festivals, jazz clubs, and concert venues")
+    period_clause = f" during {period}" if period else ""
+    return _run_prompt(
+        _GENERAL_PROMPT.format(what=what, region=region, period_clause=period_clause)
+    )
+
+
+def _run_prompt(prompt: str) -> list[dict]:
+    client = anthropic.Anthropic(api_key=anthropic_api_key())
     messages: list = [{"role": "user", "content": prompt}]
 
     response = _create_message(client, messages)
@@ -108,6 +151,7 @@ def _parse_suggestions(text: str) -> list[dict]:
                 "country": _clean(item.get("country")),
                 "website": _clean(item.get("website")),
                 "artist": _clean(item.get("artist")),
+                "event_dates": _clean(item.get("event_dates")),
                 "source_url": _clean(item.get("source_url")),
             }
         )

@@ -148,6 +148,16 @@ class DiscoveryRequest(BaseModel):
         return names
 
 
+class GeneralScanRequest(BaseModel):
+    """Parameters for a general scan: what to look for, where, and when."""
+
+    region: str
+    event_type: VenueType | None = None
+    period: str | None = None
+
+    _validate_region = field_validator("region")(_require_name)
+
+
 class SuggestionOut(BaseModel):
     """A venue Claude found, plus whether it's already in the pipeline."""
 
@@ -157,6 +167,7 @@ class SuggestionOut(BaseModel):
     country: str | None = None
     website: str | None = None
     artist: str | None = None
+    event_dates: str | None = None
     source_url: str | None = None
     already_in_pipeline: bool = False
     matched_venue_id: int | None = None
@@ -176,7 +187,10 @@ class SuggestionAccept(BaseModel):
     country: str | None = None
     website: str | None = None
     artist: str | None = None
+    event_dates: str | None = None
     source_url: str | None = None
+    # Where the lead came from; defaults to the artist hook when absent.
+    source: str | None = None
 
     _validate_name = field_validator("name")(_require_name)
 

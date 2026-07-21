@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import anthropic
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -37,6 +39,15 @@ def discover(payload: DiscoveryRequest, db: Session = Depends(get_db)) -> Discov
         raise HTTPException(status_code=502, detail=f"Claude API error: {exc.message}")
     except anthropic.APIConnectionError:
         raise HTTPException(status_code=502, detail="Could not reach the Claude API")
+
+    # Record the scan time on artists we know, so the picker can show when
+    # each one was last scouted. Free-text names only get a row on accept.
+    scanned = {name.lower() for name in payload.artists}
+    now = datetime.now(timezone.utc)
+    for artist in db.scalars(select(Artist)):
+        if artist.name.lower() in scanned:
+            artist.last_scanned = now
+    db.commit()
 
     existing = [(v.id, v.name) for v in db.scalars(select(Venue))]
     suggestions = []

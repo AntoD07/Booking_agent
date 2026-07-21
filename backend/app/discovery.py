@@ -18,7 +18,7 @@ from app.config import anthropic_api_key
 from app.models import VenueType
 
 DISCOVERY_MODEL = "claude-opus-4-8"
-MAX_WEB_SEARCHES = 8
+MAX_WEB_SEARCHES = 12
 # Server-side tool loops can stop with stop_reason "pause_turn"; the request
 # must be re-sent to let the search continue. Bounded to avoid infinite loops.
 MAX_CONTINUATIONS = 5
@@ -69,7 +69,11 @@ def _create_message(client: anthropic.Anthropic, messages: list) -> anthropic.ty
 
 def run_discovery(artist_names: list[str]) -> list[dict]:
     client = anthropic.Anthropic(api_key=anthropic_api_key())
-    prompt = _PROMPT.format(artists=" and ".join(artist_names))
+    if len(artist_names) > 1:
+        joined = ", ".join(artist_names[:-1]) + " and " + artist_names[-1]
+    else:
+        joined = artist_names[0]
+    prompt = _PROMPT.format(artists=joined)
     messages: list = [{"role": "user", "content": prompt}]
 
     response = _create_message(client, messages)

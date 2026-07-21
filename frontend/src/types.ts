@@ -77,6 +77,8 @@ export const ADDED_BY_OPTIONS = ["Antony", "Claude"] as const;
 export interface Artist {
   id: number;
   name: string;
+  /** When this artist's gigs were last scanned for venues (ISO), if ever. */
+  last_scanned: string | null;
 }
 
 /** A venue Claude found while scouting a reference artist's gigs. */

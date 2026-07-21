@@ -135,16 +135,16 @@ class EmailDraftOut(BaseModel):
 
 
 class DiscoveryRequest(BaseModel):
-    """1–2 reference artists to scout, by name (from the table or free text)."""
+    """Reference artists to scan, by name (from the table or free text)."""
 
     artists: list[str]
 
     @field_validator("artists")
     @classmethod
-    def _one_or_two_names(cls, value: list[str]) -> list[str]:
+    def _one_to_five_names(cls, value: list[str]) -> list[str]:
         names = [name.strip() for name in value if name and name.strip()]
-        if not 1 <= len(names) <= 2:
-            raise ValueError("give one or two reference artist names")
+        if not 1 <= len(names) <= 5:
+            raise ValueError("give one to five reference artist names")
         return names
 
 

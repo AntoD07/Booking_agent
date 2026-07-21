@@ -8,12 +8,12 @@ import {
 } from "./api";
 import Board from "./Board";
 import Login from "./Login";
-import Scouting from "./Scouting";
+import ManualScan from "./ManualScan";
 import VenueSheet from "./VenueSheet";
 import type { Venue, VenueStatus } from "./types";
 
 type Session = "checking" | "anonymous" | "authenticated";
-type View = "board" | "scouting";
+type View = "board" | "scan";
 
 export default function App() {
   const [session, setSession] = useState<Session>("checking");
@@ -60,9 +60,9 @@ export default function App() {
     return <Login onSuccess={() => setSession("authenticated")} />;
   }
 
-  if (view === "scouting") {
+  if (view === "scan") {
     return (
-      <Scouting
+      <ManualScan
         onBack={() => {
           setView("board");
           // Accepted suggestions became venues while we were away.
@@ -84,7 +84,7 @@ export default function App() {
           setVenues([]);
         }}
         onAddVenue={() => setActive("new")}
-        onOpenScouting={() => setView("scouting")}
+        onOpenScan={() => setView("scan")}
         onOpenVenue={(venue) => setActive(venue)}
         onStatusChange={async (venue: Venue, status: VenueStatus) => {
           try {

@@ -137,10 +137,35 @@ def test_discover_validates_artist_count(auth_client, api_key):
     )
     assert (
         auth_client.post(
-            "/api/discovery", json={"artists": ["A", "B", "C"]}
+            "/api/discovery", json={"artists": ["A", "B", "C", "D", "E", "F"]}
         ).status_code
         == 422
     )
+
+
+def test_discover_stamps_last_scanned_on_known_artists(
+    auth_client, api_key, monkeypatch
+):
+    scanned = auth_client.post(
+        "/api/artists", json={"name": "Rhythm Future Quartet"}
+    )
+    other = auth_client.post("/api/artists", json={"name": "Opal Ocean"})
+    assert scanned.status_code == 201 and other.status_code == 201
+
+    monkeypatch.setattr(
+        discovery, "_create_message", lambda client, messages: _response(CLAUDE_REPLY)
+    )
+    response = auth_client.post(
+        # Case-insensitive name match; free-text names without a row are fine
+        "/api/discovery",
+        json={"artists": ["rhythm future quartet", "Someone Unknown"]},
+    )
+    assert response.status_code == 200
+
+    artists = {a["name"]: a for a in auth_client.get("/api/artists").json()}
+    assert artists["Rhythm Future Quartet"]["last_scanned"] is not None
+    assert artists["Opal Ocean"]["last_scanned"] is None
+    assert "Someone Unknown" not in artists
 
 
 def test_discover_unusable_reply_is_502(auth_client, api_key, monkeypatch):

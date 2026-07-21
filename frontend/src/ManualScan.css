@@ -1,10 +1,10 @@
-.scouting-page {
+.scan-page {
   min-height: 100%;
   display: flex;
   flex-direction: column;
 }
 
-.scouting-header {
+.scan-header {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -12,7 +12,7 @@
   border-bottom: 1px solid var(--line);
 }
 
-.scouting-overline {
+.scan-overline {
   font-size: 0.75rem;
   letter-spacing: 0.22em;
   text-transform: uppercase;
@@ -20,11 +20,11 @@
   margin: 0 0 0.25rem;
 }
 
-.scouting-title {
+.scan-title {
   font-size: 1.9rem;
 }
 
-.scouting-back {
+.scan-back {
   background: none;
   border: none;
   color: var(--ink-soft);
@@ -33,23 +33,23 @@
   padding: 0;
 }
 
-.scouting-back:hover {
+.scan-back:hover {
   color: var(--accent);
 }
 
-.scouting-main {
+.scan-main {
   width: 100%;
   max-width: 40rem;
   margin: 0 auto;
   padding: 1.5rem 1.25rem 3rem;
 }
 
-.scouting-lede {
+.scan-lede {
   margin: 0 0 1.5rem;
   color: var(--ink-soft);
 }
 
-.scouting-form {
+.scan-form {
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
@@ -57,25 +57,74 @@
   border-bottom: 1px solid var(--line);
 }
 
-.scouting-label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
+.scan-label {
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-soft);
+  padding: 0;
+  margin-bottom: 0.3rem;
 }
 
-.scouting-optional {
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  text-transform: none;
+.scan-artists {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.scan-empty-list {
+  margin: 0;
   color: var(--ink-soft);
+  font-style: italic;
 }
 
-.scouting-input {
+.scan-artist {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.5rem 0.7rem;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.scan-artist:hover {
+  border-color: var(--accent);
+}
+
+.scan-artist.is-checked {
+  border-color: var(--accent);
+}
+
+.scan-artist input {
+  accent-color: var(--accent);
+}
+
+.scan-artist-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.scan-artist-scanned {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.scan-extra {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.scan-input {
+  flex: 1;
+  min-width: 0;
   font-family: var(--sans);
   font-size: 1rem;
   color: var(--ink);
@@ -85,12 +134,31 @@
   padding: 0.55rem 0.7rem;
 }
 
-.scouting-input:focus {
+.scan-input:focus {
   outline: none;
   border-color: var(--accent);
 }
 
-.scouting-submit {
+.scan-extra-add {
+  padding: 0.55rem 1rem;
+  font-size: 0.9rem;
+  color: var(--accent);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.scan-extra-add:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.scan-extra-add:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.scan-submit {
   align-self: flex-start;
   padding: 0.55rem 1.3rem;
   font-size: 0.9rem;
@@ -103,34 +171,34 @@
   transition: opacity 120ms ease;
 }
 
-.scouting-submit:hover:not(:disabled) {
+.scan-submit:hover:not(:disabled) {
   opacity: 0.92;
 }
 
-.scouting-submit:disabled {
+.scan-submit:disabled {
   opacity: 0.55;
   cursor: default;
 }
 
-.scouting-status {
+.scan-status {
   margin: 1.25rem 0 0;
   color: var(--ink-soft);
   font-style: italic;
 }
 
-.scouting-error {
+.scan-error {
   margin: 1.25rem 0 0;
   color: var(--accent);
 }
 
-.scouting-results {
+.scan-results {
   margin-top: 1.75rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
-.scouting-results-title {
+.scan-results-title {
   font-family: var(--sans);
   font-size: 0.8rem;
   font-weight: 600;
@@ -144,12 +212,12 @@
   border-bottom: 1px solid var(--line);
 }
 
-.scouting-results-count {
+.scan-results-count {
   font-weight: 400;
   color: var(--accent);
 }
 
-.scouting-results-note {
+.scan-results-note {
   margin: 0;
   font-size: 0.85rem;
   color: var(--ink-soft);
@@ -245,15 +313,15 @@
 }
 
 @media (min-width: 640px) {
-  .scouting-header {
+  .scan-header {
     padding: 2rem 1.5rem 1.25rem;
   }
 
-  .scouting-title {
+  .scan-title {
     font-size: 2.25rem;
   }
 
-  .scouting-main {
+  .scan-main {
     padding: 2rem 1.5rem 3rem;
   }
 }

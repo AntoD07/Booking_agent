@@ -64,16 +64,20 @@ function isUrgent(venue: Venue): boolean {
   );
 }
 
-/** Missing what we need to pitch: a contact, or the submission deadline. */
+/** Missing what we need to pitch: a contact, or (for festivals) the
+ * submission deadline — year-round venues have no deadline to miss. */
 function isIncomplete(venue: Venue): boolean {
   const hasContact = Boolean(venue.contact_email || venue.booking_contact);
-  return !hasContact || !venue.application_deadline;
+  if (venue.type === "festival") {
+    return !hasContact || !venue.application_deadline;
+  }
+  return !hasContact;
 }
 
+// Deadlines have month granularity: show "January 2027".
 function formatDeadline(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
+    month: "long",
     year: "numeric",
   });
 }

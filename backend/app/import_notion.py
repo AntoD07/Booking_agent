@@ -8,6 +8,7 @@ app.seed (source="seed") are removed the first time this runs.
 """
 
 import json
+from datetime import date
 from pathlib import Path
 
 from sqlalchemy import select
@@ -31,22 +32,42 @@ def run() -> None:
             db.delete(artist)
             removed += 1
 
-        added = 0
+        added = backfilled = 0
         for row in payload["venues"]:
-            if db.scalar(select(Venue).where(Venue.name == row["name"])) is not None:
-                continue
-            data = dict(row)
-            data["type"] = VenueType(data["type"])
-            data["status"] = VenueStatus(data["status"])
-            db.add(Venue(**data))
-            added += 1
+            existing = db.scalar(select(Venue).where(Venue.name == row["name"]))
+            if existing is None:
+                data = dict(row)
+                data["type"] = VenueType(data["type"])
+                data["status"] = VenueStatus(data["status"])
+                if data.get("application_deadline"):
+                    data["application_deadline"] = date.fromisoformat(
+                        data["application_deadline"]
+                    )
+                db.add(Venue(**data))
+                added += 1
+            elif row.get("application_deadline") and existing.application_deadline is None:
+                # Deadlines were added to the dataset after the first deploys:
+                # backfill them into existing rows, but never touch a deadline
+                # a human has already set.
+                existing.application_deadline = date.fromisoformat(
+                    row["application_deadline"]
+                )
+                confidence = dict(existing.field_confidence or {})
+                confidence["application_deadline"] = (
+                    row.get("field_confidence") or {}
+                ).get("application_deadline", "medium")
+                existing.field_confidence = confidence
+                backfilled += 1
         for row in payload["artists"]:
             if db.scalar(select(Artist).where(Artist.name == row["name"])) is None:
                 db.add(Artist(**row))
                 added += 1
 
         db.commit()
-        print(f"Notion import: {added} records added, {removed} placeholders removed.")
+        print(
+            f"Notion import: {added} records added, {backfilled} deadlines "
+            f"backfilled, {removed} placeholders removed."
+        )
 
 
 if __name__ == "__main__":

@@ -126,6 +126,16 @@
   line-height: 1.5;
 }
 
+.deadline-selects {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.deadline-selects select {
+  flex: 1;
+  min-width: 0;
+}
+
 .field input:focus,
 .field select:focus,
 .field textarea:focus {

@@ -21,8 +21,10 @@
         "contact_email": "medium",
         "booking_contact": "high",
         "event_dates": "high",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2027-01-01"
     },
     {
       "name": "Jazz à Vienne",
@@ -43,8 +45,10 @@
       "field_confidence": {
         "application_url": "high",
         "event_dates": "medium",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2027-01-01"
     },
     {
       "name": "Jazz sur son 31",
@@ -63,8 +67,10 @@
       "added_by": "Antony",
       "field_confidence": {
         "website": "high",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2027-06-01"
     },
     {
       "name": "Colmar Jazz Festival",
@@ -85,8 +91,10 @@
         "name": "medium",
         "website": "medium",
         "event_dates": "medium",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2027-04-01"
     },
     {
       "name": "Rive Jazzy Festival",
@@ -105,8 +113,10 @@
       "added_by": "Antony",
       "field_confidence": {
         "contact_email": "high",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2027-03-01"
     },
     {
       "name": "AMR Jazz Festival",
@@ -131,8 +141,10 @@
         "booking_contact": "high",
         "application_url": "high",
         "event_dates": "high",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2026-12-01"
     },
     {
       "name": "Barcelona International Jazz Festival",
@@ -151,8 +163,10 @@
       "added_by": "Antony",
       "field_confidence": {
         "contact_email": "medium",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2026-10-01"
     },
     {
       "name": "Festival Django Reinhardt",
@@ -170,8 +184,10 @@
       "source": "Notion — Festivals 2026",
       "added_by": "Antony",
       "field_confidence": {
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2026-12-01"
     },
     {
       "name": "Terrassa Jazz Festival",
@@ -188,7 +204,10 @@
       "research_notes": "Festival depuis 1981, divers venues, artistes établis + émergents, conférences, expositions · Style : Jazz tous styles · Deadline indicative : Hiver 2026 · Tél. +34 937 862 709",
       "source": "Notion — Festivals 2026",
       "added_by": "Antony",
-      "field_confidence": null
+      "field_confidence": {
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2026-12-01"
     },
     {
       "name": "Jazz in Marciac",
@@ -207,8 +226,10 @@
       "added_by": "Antony",
       "field_confidence": {
         "event_dates": "medium",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2026-10-01"
     },
     {
       "name": "Django Reinhardt Festival Hildesheim",
@@ -227,8 +248,10 @@
       "added_by": "Antony",
       "field_confidence": {
         "contact_email": "medium",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2027-03-01"
     },
     {
       "name": "jazzahead!",
@@ -249,8 +272,10 @@
       "field_confidence": {
         "application_url": "high",
         "event_dates": "medium",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2026-10-01"
     },
     {
       "name": "Cully Jazz Festival",
@@ -269,8 +294,10 @@
       "added_by": "Antony",
       "field_confidence": {
         "event_dates": "medium",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2026-09-01"
     },
     {
       "name": "Jazz Ramatuelle",
@@ -310,8 +337,10 @@
       "field_confidence": {
         "website": "high",
         "event_dates": "high",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2027-03-01"
     },
     {
       "name": "Torino Jazz Festival",
@@ -331,8 +360,10 @@
       "field_confidence": {
         "contact_email": "high",
         "event_dates": "high",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2026-08-01"
     },
     {
       "name": "Festival Raduno Manouche Sicile",
@@ -352,8 +383,10 @@
       "field_confidence": {
         "contact_email": "medium",
         "website": "high",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2027-03-01"
     },
     {
       "name": "Au Grès du Jazz",
@@ -375,8 +408,10 @@
         "city": "medium",
         "website": "medium",
         "event_dates": "medium",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2027-03-01"
     },
     {
       "name": "Septembre Musical",
@@ -395,8 +430,10 @@
       "added_by": "Antony",
       "field_confidence": {
         "website": "high",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2027-04-01"
     },
     {
       "name": "Django L'H Festival",
@@ -420,8 +457,10 @@
         "booking_contact": "medium",
         "event_dates": "high",
         "city": "high",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2026-09-01"
     },
     {
       "name": "International Tyrrhenian Jazz Festival",
@@ -442,8 +481,10 @@
       "field_confidence": {
         "contact_email": "high",
         "booking_contact": "medium",
-        "event_dates": "high"
-      }
+        "event_dates": "high",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2027-03-01"
     },
     {
       "name": "Montreux Jazz Festival",
@@ -461,8 +502,10 @@
       "source": "Notion — Festivals 2026",
       "added_by": "Antony",
       "field_confidence": {
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2026-10-01"
     },
     {
       "name": "Jazzfest Berlin",
@@ -481,8 +524,10 @@
       "added_by": "Antony",
       "field_confidence": {
         "contact_email": "high",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2026-10-01"
     },
     {
       "name": "Jazzaldia San Sebastián",
@@ -500,8 +545,10 @@
       "source": "Notion — Festivals 2026",
       "added_by": "Antony",
       "field_confidence": {
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2026-09-01"
     },
     {
       "name": "Nice Jazz Fest",
@@ -519,8 +566,10 @@
       "source": "Notion — Festivals 2026",
       "added_by": "Antony",
       "field_confidence": {
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2026-10-01"
     },
     {
       "name": "JazzMadrid Festival",
@@ -540,8 +589,10 @@
       "field_confidence": {
         "website": "high",
         "event_dates": "medium",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2027-06-01"
     },
     {
       "name": "Sceaux Jazz Festival",
@@ -562,8 +613,10 @@
         "website": "high",
         "contact_email": "high",
         "event_dates": "high",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2026-09-01"
     },
     {
       "name": "Jazz à Juan",
@@ -582,8 +635,10 @@
       "added_by": "Antony",
       "field_confidence": {
         "event_dates": "high",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2026-10-01"
     },
     {
       "name": "Jazz Onze+",
@@ -602,8 +657,10 @@
       "added_by": "Antony",
       "field_confidence": {
         "contact_email": "high",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2027-05-01"
     },
     {
       "name": "Manouch' Muzik Festival",
@@ -623,8 +680,10 @@
       "field_confidence": {
         "contact_email": "high",
         "event_dates": "medium",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2026-12-01"
     },
     {
       "name": "Lutry - Concert sur les Quais",
@@ -643,8 +702,10 @@
       "added_by": "Antony",
       "field_confidence": {
         "website": "high",
-        "event_dates": "medium"
-      }
+        "event_dates": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2027-02-01"
     },
     {
       "name": "Gipsy Lyon Festival",
@@ -663,8 +724,10 @@
       "added_by": "Antony",
       "field_confidence": {
         "contact_email": "medium",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2026-10-01"
     },
     {
       "name": "Ferme Asile",
@@ -1120,8 +1183,10 @@
       "added_by": "Antony",
       "field_confidence": {
         "website": "high",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2027-01-01"
     },
     {
       "name": "King Bar",
@@ -1221,8 +1286,10 @@
       "added_by": "Antony",
       "field_confidence": {
         "event_dates": "medium",
-        "research_notes": "medium"
-      }
+        "research_notes": "medium",
+        "application_deadline": "medium"
+      },
+      "application_deadline": "2026-09-01"
     },
     {
       "name": "Fri-Son",

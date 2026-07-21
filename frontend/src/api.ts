@@ -1,4 +1,4 @@
-import type { Venue } from "./types";
+import type { Venue, VenueInput } from "./types";
 
 export class UnauthorizedError extends Error {}
 
@@ -37,4 +37,25 @@ export function checkSession(): Promise<{ authenticated: boolean }> {
 
 export function fetchVenues(): Promise<Venue[]> {
   return request("/api/venues");
+}
+
+export function createVenue(input: VenueInput): Promise<Venue> {
+  return request("/api/venues", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateVenue(
+  id: number,
+  patch: Partial<VenueInput>,
+): Promise<Venue> {
+  return request(`/api/venues/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export function deleteVenue(id: number): Promise<void> {
+  return request(`/api/venues/${id}`, { method: "DELETE" });
 }

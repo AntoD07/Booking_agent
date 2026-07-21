@@ -3,6 +3,7 @@ import {
   TYPE_LABELS,
   VENUE_STATUSES,
   type Venue,
+  type VenueStatus,
 } from "./types";
 import "./Board.css";
 
@@ -14,10 +15,26 @@ function formatDeadline(iso: string): string {
   });
 }
 
-function VenueCard({ venue }: { venue: Venue }) {
+interface VenueCardProps {
+  venue: Venue;
+  onOpen: (venue: Venue) => void;
+  onStatusChange: (venue: Venue, status: VenueStatus) => void;
+}
+
+function VenueCard({ venue, onOpen, onStatusChange }: VenueCardProps) {
   const place = [venue.city, venue.country].filter(Boolean).join(", ");
   return (
-    <article className="venue-card">
+    <article
+      className="venue-card"
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(venue)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" && event.target === event.currentTarget) {
+          onOpen(venue);
+        }
+      }}
+    >
       <h3 className="venue-name">{venue.name}</h3>
       <p className="venue-meta">
         {TYPE_LABELS[venue.type]}
@@ -29,6 +46,21 @@ function VenueCard({ venue }: { venue: Venue }) {
         </p>
       )}
       {venue.next_action && <p className="venue-action">{venue.next_action}</p>}
+      <select
+        className="venue-status"
+        value={venue.status}
+        aria-label={`Status of ${venue.name}`}
+        onClick={(event) => event.stopPropagation()}
+        onChange={(event) =>
+          onStatusChange(venue, event.target.value as VenueStatus)
+        }
+      >
+        {VENUE_STATUSES.map((status) => (
+          <option key={status} value={status}>
+            {STATUS_LABELS[status]}
+          </option>
+        ))}
+      </select>
     </article>
   );
 }
@@ -37,9 +69,19 @@ interface BoardProps {
   venues: Venue[];
   error: string | null;
   onSignOut: () => void;
+  onAddVenue: () => void;
+  onOpenVenue: (venue: Venue) => void;
+  onStatusChange: (venue: Venue, status: VenueStatus) => void;
 }
 
-export default function Board({ venues, error, onSignOut }: BoardProps) {
+export default function Board({
+  venues,
+  error,
+  onSignOut,
+  onAddVenue,
+  onOpenVenue,
+  onStatusChange,
+}: BoardProps) {
   return (
     <div className="board-page">
       <header className="board-header">
@@ -47,9 +89,14 @@ export default function Board({ venues, error, onSignOut }: BoardProps) {
           <p className="board-overline">Season 2027</p>
           <h1 className="board-title">Venues</h1>
         </div>
-        <button className="board-signout" onClick={onSignOut}>
-          Sign out
-        </button>
+        <div className="board-actions">
+          <button className="board-add" onClick={onAddVenue}>
+            Add venue
+          </button>
+          <button className="board-signout" onClick={onSignOut}>
+            Sign out
+          </button>
+        </div>
       </header>
       {error && <p className="board-error">{error}</p>}
       <main className="board" aria-label="Booking pipeline">
@@ -64,7 +111,14 @@ export default function Board({ venues, error, onSignOut }: BoardProps) {
               {column.length === 0 ? (
                 <p className="column-empty">—</p>
               ) : (
-                column.map((venue) => <VenueCard key={venue.id} venue={venue} />)
+                column.map((venue) => (
+                  <VenueCard
+                    key={venue.id}
+                    venue={venue}
+                    onOpen={onOpenVenue}
+                    onStatusChange={onStatusChange}
+                  />
+                ))
               )}
             </section>
           );

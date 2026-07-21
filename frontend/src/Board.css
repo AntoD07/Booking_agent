@@ -24,13 +24,36 @@
   font-size: 1.9rem;
 }
 
+.board-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
+.board-add {
+  padding: 0.5rem 1.1rem;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  color: var(--paper-raised);
+  background: var(--accent);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+
+.board-add:hover {
+  opacity: 0.92;
+}
+
 .board-signout {
   background: none;
   border: none;
   color: var(--ink-soft);
   font-size: 0.85rem;
   cursor: pointer;
-  padding: 0.5rem 0;
+  padding: 0;
 }
 
 .board-signout:hover {
@@ -93,6 +116,14 @@
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 0.9rem 1rem;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.venue-card:hover,
+.venue-card:focus-visible {
+  border-color: var(--accent);
+  outline: none;
 }
 
 .venue-name {
@@ -117,6 +148,25 @@
   font-size: 0.9rem;
   border-top: 1px solid var(--line);
   padding-top: 0.55rem;
+}
+
+.venue-status {
+  margin-top: 0.7rem;
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.venue-status:focus {
+  outline: none;
+  border-color: var(--accent);
+  color: var(--ink);
 }
 
 /* Wider screens: several fixed-width columns side by side. */

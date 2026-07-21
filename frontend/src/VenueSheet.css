@@ -1,0 +1,225 @@
+/* Full-screen sheet on mobile; centered panel over a dim backdrop on larger screens. */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: rgba(35, 32, 26, 0.35);
+  display: flex;
+}
+
+.sheet {
+  background: var(--paper);
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sheet-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem 1.25rem 1rem;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  background: var(--paper);
+}
+
+.sheet-overline {
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.25rem;
+}
+
+.sheet-title {
+  font-size: 1.7rem;
+  line-height: 1.15;
+}
+
+.sheet-close {
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.5rem 0;
+}
+
+.sheet-close:hover {
+  color: var(--accent);
+}
+
+.sheet-form {
+  padding: 0.5rem 1.25rem 2.5rem;
+}
+
+.sheet-section {
+  border: none;
+  margin: 0;
+  padding: 1.85rem 0 0;
+}
+
+.sheet-legend {
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding: 0 0 0.6rem;
+}
+
+.sheet-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.field span {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.field input,
+.field select,
+.field textarea {
+  padding: 0.6rem 0.75rem;
+  font-size: 1rem;
+  font-family: var(--sans);
+  color: var(--ink);
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.field textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.sheet-error {
+  color: var(--accent);
+  margin: 1.25rem 0 0;
+}
+
+.sheet-actions {
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+
+.sheet-save {
+  padding: 0.7rem 1.5rem;
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  color: var(--paper-raised);
+  background: var(--accent);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+
+.sheet-save:hover {
+  opacity: 0.92;
+}
+
+.sheet-save:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.sheet-delete {
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.5rem 0;
+}
+
+.sheet-delete:hover {
+  color: var(--accent);
+}
+
+.sheet-confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.sheet-delete-confirm {
+  color: var(--paper-raised);
+  background: var(--accent);
+  border-radius: 4px;
+  padding: 0.45rem 1rem;
+}
+
+.sheet-delete-confirm:hover {
+  color: var(--paper-raised);
+  opacity: 0.92;
+}
+
+.sheet-keep {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--ink);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.45rem 1rem;
+}
+
+@media (min-width: 640px) {
+  .sheet-backdrop {
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  .sheet {
+    max-width: 42rem;
+    height: auto;
+    max-height: calc(100vh - 4rem);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+
+  .sheet-header {
+    padding: 1.75rem 2rem 1.25rem;
+  }
+
+  .sheet-form {
+    padding: 0.5rem 2rem 2.5rem;
+  }
+
+  .sheet-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .field-wide {
+    grid-column: 1 / -1;
+  }
+}

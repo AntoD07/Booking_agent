@@ -74,6 +74,28 @@ export interface VenueInput {
 /** Known team members for the "Added by" picker; extend as the team grows. */
 export const ADDED_BY_OPTIONS = ["Antony", "Claude"] as const;
 
+export interface Artist {
+  id: number;
+  name: string;
+  /** When this artist's gigs were last scanned for venues (ISO), if ever. */
+  last_scanned: string | null;
+}
+
+/** A venue Claude found while scouting a reference artist's gigs. */
+export interface Suggestion {
+  name: string;
+  type: VenueType;
+  city: string | null;
+  country: string | null;
+  website: string | null;
+  artist: string | null;
+  event_dates: string | null;
+  source_url: string | null;
+  already_in_pipeline: boolean;
+  matched_venue_id: number | null;
+  matched_venue_name: string | null;
+}
+
 export interface Venue {
   id: number;
   name: string;

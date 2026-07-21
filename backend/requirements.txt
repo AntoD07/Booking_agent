@@ -13,6 +13,9 @@ pydantic>=2.7
 # Signed session cookie
 itsdangerous>=2.2
 
+# Claude API (reference-artist venue discovery)
+anthropic>=0.79
+
 # Tests
 pytest>=8.0
 httpx>=0.27

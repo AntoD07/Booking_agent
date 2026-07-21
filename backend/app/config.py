@@ -24,6 +24,10 @@ def app_password() -> str | None:
     return os.environ.get("APP_PASSWORD") or None
 
 
+def anthropic_api_key() -> str | None:
+    return os.environ.get("ANTHROPIC_API_KEY") or None
+
+
 def cookie_secure() -> bool:
     # Secure cookies on by default; opt out for local http development.
     return os.environ.get("COOKIE_SECURE", "true").lower() != "false"

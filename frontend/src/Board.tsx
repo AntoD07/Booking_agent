@@ -150,6 +150,7 @@ interface BoardProps {
   error: string | null;
   onSignOut: () => void;
   onAddVenue: () => void;
+  onOpenScan: () => void;
   onOpenVenue: (venue: Venue) => void;
   onStatusChange: (venue: Venue, status: VenueStatus) => void;
 }
@@ -159,6 +160,7 @@ export default function Board({
   error,
   onSignOut,
   onAddVenue,
+  onOpenScan,
   onOpenVenue,
   onStatusChange,
 }: BoardProps) {
@@ -189,6 +191,9 @@ export default function Board({
         <div className="board-actions">
           <button className="board-add" onClick={onAddVenue}>
             Add venue
+          </button>
+          <button className="board-scan" onClick={onOpenScan}>
+            Manual scan
           </button>
           <button className="board-signout" onClick={onSignOut}>
             Sign out

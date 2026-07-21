@@ -8,13 +8,16 @@ import {
 } from "./api";
 import Board from "./Board";
 import Login from "./Login";
+import ManualScan from "./ManualScan";
 import VenueSheet from "./VenueSheet";
 import type { Venue, VenueStatus } from "./types";
 
 type Session = "checking" | "anonymous" | "authenticated";
+type View = "board" | "scan";
 
 export default function App() {
   const [session, setSession] = useState<Session>("checking");
+  const [view, setView] = useState<View>("board");
   const [venues, setVenues] = useState<Venue[]>([]);
   const [error, setError] = useState<string | null>(null);
   // Venue being edited, "new" for the add-venue form, null when the board is shown.
@@ -57,6 +60,19 @@ export default function App() {
     return <Login onSuccess={() => setSession("authenticated")} />;
   }
 
+  if (view === "scan") {
+    return (
+      <ManualScan
+        onBack={() => {
+          setView("board");
+          // Accepted suggestions became venues while we were away.
+          loadVenues();
+        }}
+        onUnauthorized={() => setSession("anonymous")}
+      />
+    );
+  }
+
   return (
     <>
       <Board
@@ -68,6 +84,7 @@ export default function App() {
           setVenues([]);
         }}
         onAddVenue={() => setActive("new")}
+        onOpenScan={() => setView("scan")}
         onOpenVenue={(venue) => setActive(venue)}
         onStatusChange={async (venue: Venue, status: VenueStatus) => {
           try {

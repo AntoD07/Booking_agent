@@ -4,13 +4,14 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.routers import artists, auth, venues
+from app.routers import artists, auth, discovery, venues
 
 app = FastAPI(title="Gig Pipeline")
 
 app.include_router(auth.router)
 app.include_router(venues.router)
 app.include_router(artists.router)
+app.include_router(discovery.router)
 
 
 @app.get("/api/health")

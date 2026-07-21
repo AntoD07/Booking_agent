@@ -134,5 +134,66 @@ class EmailDraftOut(BaseModel):
     created_at: datetime
 
 
+class DiscoveryRequest(BaseModel):
+    """Reference artists to scan, by name (from the table or free text)."""
+
+    artists: list[str]
+
+    @field_validator("artists")
+    @classmethod
+    def _one_to_five_names(cls, value: list[str]) -> list[str]:
+        names = [name.strip() for name in value if name and name.strip()]
+        if not 1 <= len(names) <= 5:
+            raise ValueError("give one to five reference artist names")
+        return names
+
+
+class GeneralScanRequest(BaseModel):
+    """Parameters for a general scan: what to look for, where, and when."""
+
+    region: str
+    event_type: VenueType | None = None
+    period: str | None = None
+
+    _validate_region = field_validator("region")(_require_name)
+
+
+class SuggestionOut(BaseModel):
+    """A venue Claude found, plus whether it's already in the pipeline."""
+
+    name: str
+    type: VenueType
+    city: str | None = None
+    country: str | None = None
+    website: str | None = None
+    artist: str | None = None
+    event_dates: str | None = None
+    source_url: str | None = None
+    already_in_pipeline: bool = False
+    matched_venue_id: int | None = None
+    matched_venue_name: str | None = None
+
+
+class DiscoveryOut(BaseModel):
+    suggestions: list[SuggestionOut]
+
+
+class SuggestionAccept(BaseModel):
+    """An accepted suggestion, to be turned into a pipeline venue."""
+
+    name: str
+    type: VenueType = VenueType.venue
+    city: str | None = None
+    country: str | None = None
+    website: str | None = None
+    artist: str | None = None
+    event_dates: str | None = None
+    source_url: str | None = None
+    # Where the lead came from; defaults to the artist hook when absent.
+    source: str | None = None
+
+    _validate_name = field_validator("name")(_require_name)
+
+
 class LoginRequest(BaseModel):
     password: str

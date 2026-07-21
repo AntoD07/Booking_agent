@@ -67,7 +67,10 @@ function initForm(venue: Venue | null): FormState {
   };
 }
 
-function toPayload(form: FormState): VenueInput {
+function toPayload(
+  form: FormState,
+  confidence: Record<string, string>,
+): VenueInput {
   const text = (value: string) => value.trim() || null;
   const score = form.fit_score.trim();
   return {
@@ -90,6 +93,7 @@ function toPayload(form: FormState): VenueInput {
     next_action: text(form.next_action),
     source: text(form.source),
     added_by: text(form.added_by),
+    field_confidence: Object.keys(confidence).length ? confidence : null,
   };
 }
 
@@ -109,9 +113,32 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
   );
   const [artistName, setArtistName] = useState("");
   const [artistYear, setArtistYear] = useState("");
+  // Research-confidence markers for fields filled by Claude. Editing a
+  // marked field clears its marker: the value is human-verified from then on.
+  const [confidence, setConfidence] = useState<Record<string, string>>(
+    venue?.field_confidence ?? {},
+  );
 
   function set<K extends keyof FormState>(field: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [field]: value }));
+    if (confidence[field]) {
+      setConfidence((current) => {
+        const next = { ...current };
+        delete next[field];
+        return next;
+      });
+    }
+  }
+
+  function confidenceDot(field: keyof FormState) {
+    const level = confidence[field];
+    if (!level) return null;
+    return (
+      <span
+        className={`conf-dot conf-${level}`}
+        title={`Filled by Claude — ${level} confidence. Edit to confirm.`}
+      />
+    );
   }
 
   function fail(err: unknown) {
@@ -128,7 +155,7 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
     setBusy(true);
     setError(null);
     try {
-      const payload = toPayload(form);
+      const payload = toPayload(form, confidence);
       if (venue) {
         await updateVenue(venue.id, payload);
       } else {
@@ -210,7 +237,7 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
             <legend className="sheet-legend">Essentials</legend>
             <div className="sheet-grid">
               <label className="field field-wide">
-                <span>Name</span>
+                <span>Name{confidenceDot("name")}</span>
                 <input
                   value={form.name}
                   onChange={(e) => set("name", e.target.value)}
@@ -245,14 +272,14 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
                 </select>
               </label>
               <label className="field">
-                <span>City</span>
+                <span>City{confidenceDot("city")}</span>
                 <input
                   value={form.city}
                   onChange={(e) => set("city", e.target.value)}
                 />
               </label>
               <label className="field">
-                <span>Region</span>
+                <span>Region{confidenceDot("region")}</span>
                 <input
                   value={form.region}
                   onChange={(e) => set("region", e.target.value)}
@@ -260,7 +287,7 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
                 />
               </label>
               <label className="field">
-                <span>Country</span>
+                <span>Country{confidenceDot("country")}</span>
                 <input
                   value={form.country}
                   onChange={(e) => set("country", e.target.value)}
@@ -273,7 +300,7 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
             <legend className="sheet-legend">Application</legend>
             <div className="sheet-grid">
               <label className="field">
-                <span>Application deadline</span>
+                <span>Application deadline{confidenceDot("application_deadline")}</span>
                 <input
                   type="date"
                   value={form.application_deadline}
@@ -281,7 +308,7 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
                 />
               </label>
               <label className="field">
-                <span>Event dates</span>
+                <span>Event dates{confidenceDot("event_dates")}</span>
                 <input
                   value={form.event_dates}
                   onChange={(e) => set("event_dates", e.target.value)}
@@ -289,7 +316,7 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
                 />
               </label>
               <label className="field">
-                <span>How to apply</span>
+                <span>How to apply{confidenceDot("application_method")}</span>
                 <input
                   value={form.application_method}
                   onChange={(e) => set("application_method", e.target.value)}
@@ -297,7 +324,7 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
                 />
               </label>
               <label className="field">
-                <span>Application link</span>
+                <span>Application link{confidenceDot("application_url")}</span>
                 <input
                   value={form.application_url}
                   onChange={(e) => set("application_url", e.target.value)}
@@ -311,14 +338,14 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
             <legend className="sheet-legend">Contact</legend>
             <div className="sheet-grid">
               <label className="field">
-                <span>Programmer / contact</span>
+                <span>Programmer / contact{confidenceDot("booking_contact")}</span>
                 <input
                   value={form.booking_contact}
                   onChange={(e) => set("booking_contact", e.target.value)}
                 />
               </label>
               <label className="field">
-                <span>Email</span>
+                <span>Email{confidenceDot("contact_email")}</span>
                 <input
                   value={form.contact_email}
                   onChange={(e) => set("contact_email", e.target.value)}
@@ -326,7 +353,7 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
                 />
               </label>
               <label className="field field-wide">
-                <span>Website</span>
+                <span>Website{confidenceDot("website")}</span>
                 <input
                   value={form.website}
                   onChange={(e) => set("website", e.target.value)}
@@ -340,7 +367,7 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
             <legend className="sheet-legend">Notes</legend>
             <div className="sheet-grid">
               <label className="field field-wide">
-                <span>Research notes</span>
+                <span>Research notes{confidenceDot("research_notes")}</span>
                 <textarea
                   value={form.research_notes}
                   onChange={(e) => set("research_notes", e.target.value)}
@@ -348,14 +375,14 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
                 />
               </label>
               <label className="field field-wide">
-                <span>Next action</span>
+                <span>Next action{confidenceDot("next_action")}</span>
                 <input
                   value={form.next_action}
                   onChange={(e) => set("next_action", e.target.value)}
                 />
               </label>
               <label className="field">
-                <span>Last contact</span>
+                <span>Last contact{confidenceDot("last_contact")}</span>
                 <input
                   type="date"
                   value={form.last_contact}
@@ -374,7 +401,7 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
                 />
               </label>
               <label className="field">
-                <span>Source</span>
+                <span>Source{confidenceDot("source")}</span>
                 <input
                   value={form.source}
                   onChange={(e) => set("source", e.target.value)}

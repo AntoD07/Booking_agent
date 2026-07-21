@@ -90,6 +90,25 @@
   color: var(--ink-soft);
 }
 
+/* Research-confidence marker for fields filled by Claude. */
+.conf-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  margin-left: 0.4rem;
+  vertical-align: baseline;
+  cursor: help;
+}
+
+.conf-high {
+  background: #5f7a4e;
+}
+
+.conf-medium {
+  background: #b8862e;
+}
+
 .field input,
 .field select,
 .field textarea {

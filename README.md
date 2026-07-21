@@ -59,3 +59,4 @@ never in the repo.
 | `APP_PASSWORD` | yes | The single shared password for the login gate. Login is disabled until it is set. |
 | `SECRET_KEY` | production | Signs the session cookie. Render generates it via `render.yaml`; any long random string works. |
 | `COOKIE_SECURE` | no | Set to `false` for local plain-HTTP development only. |
+| `ANTHROPIC_API_KEY` | for Scouting | Enables reference-artist venue discovery (the Scouting page). Without it, the rest of the app works and discovery returns 503. |

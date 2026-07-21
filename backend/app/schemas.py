@@ -134,5 +134,52 @@ class EmailDraftOut(BaseModel):
     created_at: datetime
 
 
+class DiscoveryRequest(BaseModel):
+    """1–2 reference artists to scout, by name (from the table or free text)."""
+
+    artists: list[str]
+
+    @field_validator("artists")
+    @classmethod
+    def _one_or_two_names(cls, value: list[str]) -> list[str]:
+        names = [name.strip() for name in value if name and name.strip()]
+        if not 1 <= len(names) <= 2:
+            raise ValueError("give one or two reference artist names")
+        return names
+
+
+class SuggestionOut(BaseModel):
+    """A venue Claude found, plus whether it's already in the pipeline."""
+
+    name: str
+    type: VenueType
+    city: str | None = None
+    country: str | None = None
+    website: str | None = None
+    artist: str | None = None
+    source_url: str | None = None
+    already_in_pipeline: bool = False
+    matched_venue_id: int | None = None
+    matched_venue_name: str | None = None
+
+
+class DiscoveryOut(BaseModel):
+    suggestions: list[SuggestionOut]
+
+
+class SuggestionAccept(BaseModel):
+    """An accepted suggestion, to be turned into a pipeline venue."""
+
+    name: str
+    type: VenueType = VenueType.venue
+    city: str | None = None
+    country: str | None = None
+    website: str | None = None
+    artist: str | None = None
+    source_url: str | None = None
+
+    _validate_name = field_validator("name")(_require_name)
+
+
 class LoginRequest(BaseModel):
     password: str

@@ -81,9 +81,10 @@ export function fetchArtists(): Promise<Artist[]> {
   return request("/api/artists");
 }
 
+/** Scans run as background jobs; start one, then poll fetchScanJob. */
 export function discoverVenues(
   artists: string[],
-): Promise<{ suggestions: Suggestion[] }> {
+): Promise<{ job_id: string }> {
   return request("/api/discovery", {
     method: "POST",
     body: JSON.stringify({ artists }),
@@ -98,11 +99,22 @@ export interface GeneralScanParams {
 
 export function generalScan(
   params: GeneralScanParams,
-): Promise<{ suggestions: Suggestion[] }> {
+): Promise<{ job_id: string }> {
   return request("/api/discovery/general", {
     method: "POST",
     body: JSON.stringify(params),
   });
+}
+
+export interface ScanJob {
+  job_id: string;
+  status: "running" | "done" | "failed";
+  error: string | null;
+  suggestions: Suggestion[] | null;
+}
+
+export function fetchScanJob(jobId: string): Promise<ScanJob> {
+  return request(`/api/discovery/jobs/${jobId}`);
 }
 
 export function acceptSuggestion(

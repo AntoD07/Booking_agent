@@ -19,6 +19,9 @@ from app.models import VenueType
 
 DISCOVERY_MODEL = "claude-opus-4-8"
 MAX_WEB_SEARCHES = 12
+# Per-request ceiling. Without it the SDK waits 10 minutes and then quietly
+# retries, which is how a scan turns into a half-hour zombie.
+REQUEST_TIMEOUT_SECONDS = 240.0
 # Server-side tool loops can stop with stop_reason "pause_turn"; the request
 # must be re-sent to let the search continue. Bounded to avoid infinite loops.
 MAX_CONTINUATIONS = 5
@@ -116,7 +119,11 @@ def run_general_discovery(
 
 
 def _run_prompt(prompt: str) -> list[dict]:
-    client = anthropic.Anthropic(api_key=anthropic_api_key())
+    client = anthropic.Anthropic(
+        api_key=anthropic_api_key(),
+        timeout=REQUEST_TIMEOUT_SECONDS,
+        max_retries=1,
+    )
     messages: list = [{"role": "user", "content": prompt}]
 
     response = _create_message(client, messages)

@@ -178,6 +178,19 @@ class DiscoveryOut(BaseModel):
     suggestions: list[SuggestionOut]
 
 
+class ScanStarted(BaseModel):
+    """A scan accepted for background processing; poll the job for results."""
+
+    job_id: str
+
+
+class ScanJobOut(BaseModel):
+    job_id: str
+    status: str  # running | done | failed
+    error: str | None = None
+    suggestions: list[SuggestionOut] | None = None
+
+
 class SuggestionAccept(BaseModel):
     """An accepted suggestion, to be turned into a pipeline venue."""
 

@@ -16,6 +16,60 @@ function distinct(values: (string | null)[]): string[] {
   );
 }
 
+type SortKey = "deadline" | "name" | "country" | "fit";
+
+const SORT_LABELS: Record<SortKey, string> = {
+  deadline: "Deadline",
+  name: "Name",
+  country: "Country",
+  fit: "Fit",
+};
+
+function compareVenues(a: Venue, b: Venue, key: SortKey): number {
+  switch (key) {
+    case "deadline":
+      // Soonest deadline first; venues without one sink to the bottom.
+      if (a.application_deadline && b.application_deadline) {
+        return (
+          a.application_deadline.localeCompare(b.application_deadline) ||
+          a.name.localeCompare(b.name)
+        );
+      }
+      if (a.application_deadline) return -1;
+      if (b.application_deadline) return 1;
+      return a.name.localeCompare(b.name);
+    case "name":
+      return a.name.localeCompare(b.name);
+    case "country":
+      return (
+        (a.country ?? "￿").localeCompare(b.country ?? "￿") ||
+        a.name.localeCompare(b.name)
+      );
+    case "fit":
+      // Best fit first; unrated venues last.
+      return (
+        (b.fit_score ?? -1) - (a.fit_score ?? -1) ||
+        a.name.localeCompare(b.name)
+      );
+  }
+}
+
+const TWO_MONTHS_MS = 61 * 24 * 60 * 60 * 1000;
+
+/** Deadline already set and closer than two months (or past). */
+function isUrgent(venue: Venue): boolean {
+  if (!venue.application_deadline) return false;
+  return (
+    new Date(venue.application_deadline).getTime() - Date.now() < TWO_MONTHS_MS
+  );
+}
+
+/** Missing what we need to pitch: a contact, or the submission deadline. */
+function isIncomplete(venue: Venue): boolean {
+  const hasContact = Boolean(venue.contact_email || venue.booking_contact);
+  return !hasContact || !venue.application_deadline;
+}
+
 function formatDeadline(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
     day: "numeric",
@@ -32,9 +86,22 @@ interface VenueCardProps {
 
 function VenueCard({ venue, onOpen, onStatusChange }: VenueCardProps) {
   const place = [venue.city, venue.country].filter(Boolean).join(", ");
+  const urgent = isUrgent(venue);
+  const flag = urgent
+    ? " venue-card--urgent"
+    : isIncomplete(venue)
+      ? " venue-card--incomplete"
+      : "";
   return (
     <article
-      className="venue-card"
+      className={`venue-card${flag}`}
+      title={
+        urgent
+          ? "Application deadline in less than two months"
+          : flag
+            ? "Missing contact or submission deadline"
+            : undefined
+      }
       role="button"
       tabIndex={0}
       onClick={() => onOpen(venue)}
@@ -50,7 +117,7 @@ function VenueCard({ venue, onOpen, onStatusChange }: VenueCardProps) {
         {place && ` · ${place}`}
       </p>
       {venue.application_deadline && (
-        <p className="venue-deadline">
+        <p className={`venue-deadline${urgent ? " venue-deadline--urgent" : ""}`}>
           Apply by {formatDeadline(venue.application_deadline)}
         </p>
       )}
@@ -94,15 +161,18 @@ export default function Board({
   const [typeFilter, setTypeFilter] = useState<VenueType | "">("");
   const [countryFilter, setCountryFilter] = useState("");
   const [regionFilter, setRegionFilter] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("deadline");
 
   const countries = distinct(venues.map((venue) => venue.country));
   const regions = distinct(venues.map((venue) => venue.region));
-  const filtered = venues.filter(
-    (venue) =>
-      (!typeFilter || venue.type === typeFilter) &&
-      (!countryFilter || venue.country === countryFilter) &&
-      (!regionFilter || venue.region === regionFilter),
-  );
+  const filtered = venues
+    .filter(
+      (venue) =>
+        (!typeFilter || venue.type === typeFilter) &&
+        (!countryFilter || venue.country === countryFilter) &&
+        (!regionFilter || venue.region === regionFilter),
+    )
+    .sort((a, b) => compareVenues(a, b, sortKey));
   const filtering = Boolean(typeFilter || countryFilter || regionFilter);
 
   return (
@@ -161,6 +231,18 @@ export default function Board({
             </option>
           ))}
         </select>
+        <select
+          className="board-filter"
+          value={sortKey}
+          aria-label="Sort venues by"
+          onChange={(e) => setSortKey(e.target.value as SortKey)}
+        >
+          {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+            <option key={key} value={key}>
+              Sort: {SORT_LABELS[key]}
+            </option>
+          ))}
+        </select>
         {filtering && (
           <button
             className="board-filter-clear"
@@ -174,6 +256,12 @@ export default function Board({
           </button>
         )}
       </div>
+      <p className="board-legend">
+        <span className="legend-swatch legend-urgent" /> deadline under two
+        months
+        <span className="legend-swatch legend-incomplete" /> contact or
+        deadline missing
+      </p>
       {error && <p className="board-error">{error}</p>}
       <main className="board" aria-label="Booking pipeline">
         {VENUE_STATUSES.map((status) => {

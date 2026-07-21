@@ -95,6 +95,34 @@
   padding: 0.4rem 0.2rem;
 }
 
+.board-legend {
+  margin: 0.5rem 0 0;
+  padding: 0 1.25rem;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 0.85rem;
+  height: 0.3rem;
+  border-radius: 2px;
+  margin: 0 0.35rem 0.1rem;
+  vertical-align: middle;
+}
+
+.legend-swatch:first-child {
+  margin-left: 0;
+}
+
+.legend-urgent {
+  background: var(--accent);
+}
+
+.legend-incomplete {
+  background: #b8862e;
+}
+
 .board-error {
   padding: 0.75rem 1.25rem;
   color: var(--accent);
@@ -161,6 +189,15 @@
   outline: none;
 }
 
+/* Left stripe: burgundy = deadline under two months, amber = info missing. */
+.venue-card--urgent {
+  border-left: 3px solid var(--accent);
+}
+
+.venue-card--incomplete {
+  border-left: 3px solid #b8862e;
+}
+
 .venue-name {
   font-size: 1.15rem;
   line-height: 1.25;
@@ -176,6 +213,10 @@
   margin: 0.55rem 0 0;
   font-size: 0.85rem;
   color: var(--accent);
+}
+
+.venue-deadline--urgent {
+  font-weight: 600;
 }
 
 .venue-action {

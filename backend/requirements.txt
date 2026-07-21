@@ -1,0 +1,18 @@
+# Web framework + server
+fastapi>=0.115
+uvicorn[standard]>=0.30
+
+# Database
+SQLAlchemy>=2.0
+psycopg[binary]>=3.2
+alembic>=1.13
+
+# Schemas / validation
+pydantic>=2.7
+
+# Signed session cookie
+itsdangerous>=2.2
+
+# Tests
+pytest>=8.0
+httpx>=0.27

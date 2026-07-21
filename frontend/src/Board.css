@@ -1,0 +1,137 @@
+.board-page {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.board-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 1.5rem 1.25rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.board-overline {
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.25rem;
+}
+
+.board-title {
+  font-size: 1.9rem;
+}
+
+.board-signout {
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.5rem 0;
+}
+
+.board-signout:hover {
+  color: var(--accent);
+}
+
+.board-error {
+  padding: 0.75rem 1.25rem;
+  color: var(--accent);
+  margin: 0;
+}
+
+/* Mobile-first: one column per screen, horizontal swipe with snap. */
+.board {
+  flex: 1;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 82vw;
+  gap: 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 1.25rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.board-column {
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.column-title {
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.column-count {
+  font-weight: 400;
+  color: var(--accent);
+}
+
+.column-empty {
+  color: var(--line);
+  margin: 0;
+}
+
+.venue-card {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.9rem 1rem;
+}
+
+.venue-name {
+  font-size: 1.15rem;
+  line-height: 1.25;
+}
+
+.venue-meta {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.venue-deadline {
+  margin: 0.55rem 0 0;
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+
+.venue-action {
+  margin: 0.55rem 0 0;
+  font-size: 0.9rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.55rem;
+}
+
+/* Wider screens: several fixed-width columns side by side. */
+@media (min-width: 640px) {
+  .board {
+    grid-auto-columns: 17.5rem;
+    scroll-snap-type: none;
+    padding: 1.5rem;
+  }
+
+  .board-header {
+    padding: 2rem 1.5rem 1.25rem;
+  }
+
+  .board-title {
+    font-size: 2.25rem;
+  }
+}

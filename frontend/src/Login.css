@@ -1,0 +1,84 @@
+.login {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 22rem;
+  text-align: center;
+}
+
+.login-overline {
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.75rem;
+}
+
+.login-title {
+  font-size: 2rem;
+  line-height: 1.2;
+  margin-bottom: 2.5rem;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.login-label {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.login-form input {
+  padding: 0.7rem 0.9rem;
+  font-size: 1rem;
+  font-family: var(--sans);
+  color: var(--ink);
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.login-form input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.login-form button {
+  margin-top: 0.5rem;
+  padding: 0.7rem;
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  color: var(--paper-raised);
+  background: var(--accent);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+
+.login-form button:hover {
+  opacity: 0.92;
+}
+
+.login-form button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.login-error {
+  color: var(--accent);
+  font-size: 0.9rem;
+  margin: 0;
+  text-align: center;
+}

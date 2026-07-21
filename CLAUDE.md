@@ -29,6 +29,19 @@ enrichment via web search, multi-user.
 - **Repo layout**: `/backend` and `/frontend` in this monorepo.
 - **Testing**: pytest for the API. Frontend tests only for non-trivial logic.
 
+## Stack (amended)
+
+- Database: PostgreSQL via SQLAlchemy, connection from DATABASE_URL env var
+  (Neon free tier in production, can be SQLite locally for tests).
+- Deployment: single service — FastAPI serves the built React frontend as
+  static files. Deployed on Render (or Railway) via render.yaml in repo.
+  Secrets (DATABASE_URL, APP_PASSWORD, later ANTHROPIC_API_KEY) live ONLY
+  in the hosting platform's environment settings, never in the repo.
+- Access control: single shared password (APP_PASSWORD env var), simple
+  login page, signed session cookie. No user accounts in phase 1.
+- The UI must be fully usable on a phone — primary devices are mobile
+  and laptop. Design mobile-first.
+
 ## Commands
 
 - Backend dev: `cd backend && uvicorn app.main:app --reload`

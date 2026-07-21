@@ -81,7 +81,12 @@ export default function App() {
       {active !== null && (
         <VenueSheet
           venue={active === "new" ? null : active}
-          onClose={() => setActive(null)}
+          onClose={() => {
+            setActive(null);
+            // Artist appearances save immediately inside the sheet, so the
+            // board list may be stale even when the form itself wasn't saved.
+            loadVenues();
+          }}
           onSaved={() => {
             setActive(null);
             loadVenues();

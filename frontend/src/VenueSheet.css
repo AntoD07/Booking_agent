@@ -114,6 +114,97 @@
   border-color: var(--accent);
 }
 
+.appearance-empty {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.appearance-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.appearance {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.appearance-name {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+}
+
+.appearance-year {
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+
+.appearance-remove {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0.2rem 0;
+}
+
+.appearance-remove:hover {
+  color: var(--accent);
+}
+
+.appearance-add {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.appearance-add input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.95rem;
+  font-family: var(--sans);
+  color: var(--ink);
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.appearance-add input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.appearance-year-input {
+  max-width: 8.5rem;
+}
+
+.appearance-add-button {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  color: var(--ink);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.appearance-add-button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.appearance-add-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .sheet-error {
   color: var(--accent);
   margin: 1.25rem 0 0;

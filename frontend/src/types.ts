@@ -40,9 +40,10 @@ export const TYPE_LABELS: Record<VenueType, string> = {
   cultural_center: "Cultural center",
 };
 
-export interface ArtistSummary {
-  id: number;
+export interface VenueArtistAppearance {
+  artist_id: number;
   name: string;
+  year: string | null;
 }
 
 /** Payload for creating or updating a venue — everything but id/artists. */
@@ -50,6 +51,7 @@ export interface VenueInput {
   name: string;
   type: VenueType;
   country: string | null;
+  region: string | null;
   city: string | null;
   status: VenueStatus;
   fit_score: number | null;
@@ -64,13 +66,18 @@ export interface VenueInput {
   last_contact: string | null;
   next_action: string | null;
   source: string | null;
+  added_by: string | null;
 }
+
+/** Known team members for the "Added by" picker; extend as the team grows. */
+export const ADDED_BY_OPTIONS = ["Antony", "Claude"] as const;
 
 export interface Venue {
   id: number;
   name: string;
   type: VenueType;
   country: string | null;
+  region: string | null;
   city: string | null;
   status: VenueStatus;
   fit_score: number | null;
@@ -85,5 +92,6 @@ export interface Venue {
   last_contact: string | null;
   next_action: string | null;
   source: string | null;
-  artists: ArtistSummary[];
+  added_by: string | null;
+  artists: VenueArtistAppearance[];
 }

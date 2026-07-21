@@ -1,16 +1,20 @@
 import { FormEvent, useState } from "react";
 import {
   UnauthorizedError,
+  addAppearance,
   createVenue,
   deleteVenue,
+  removeAppearance,
   updateVenue,
 } from "./api";
 import {
+  ADDED_BY_OPTIONS,
   STATUS_LABELS,
   TYPE_LABELS,
   VENUE_STATUSES,
   VENUE_TYPES,
   type Venue,
+  type VenueArtistAppearance,
   type VenueInput,
   type VenueStatus,
   type VenueType,
@@ -22,6 +26,7 @@ interface FormState {
   type: VenueType;
   status: VenueStatus;
   city: string;
+  region: string;
   country: string;
   fit_score: string;
   booking_contact: string;
@@ -35,6 +40,7 @@ interface FormState {
   last_contact: string;
   next_action: string;
   source: string;
+  added_by: string;
 }
 
 function initForm(venue: Venue | null): FormState {
@@ -43,6 +49,7 @@ function initForm(venue: Venue | null): FormState {
     type: venue?.type ?? "venue",
     status: venue?.status ?? "discovered",
     city: venue?.city ?? "",
+    region: venue?.region ?? "",
     country: venue?.country ?? "",
     fit_score: venue?.fit_score != null ? String(venue.fit_score) : "",
     booking_contact: venue?.booking_contact ?? "",
@@ -56,6 +63,7 @@ function initForm(venue: Venue | null): FormState {
     last_contact: venue?.last_contact ?? "",
     next_action: venue?.next_action ?? "",
     source: venue?.source ?? "",
+    added_by: venue?.added_by ?? "",
   };
 }
 
@@ -67,6 +75,7 @@ function toPayload(form: FormState): VenueInput {
     type: form.type,
     status: form.status,
     city: text(form.city),
+    region: text(form.region),
     country: text(form.country),
     fit_score: score && !Number.isNaN(Number(score)) ? Number(score) : null,
     booking_contact: text(form.booking_contact),
@@ -80,6 +89,7 @@ function toPayload(form: FormState): VenueInput {
     last_contact: text(form.last_contact),
     next_action: text(form.next_action),
     source: text(form.source),
+    added_by: text(form.added_by),
   };
 }
 
@@ -94,6 +104,11 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [appearances, setAppearances] = useState<VenueArtistAppearance[]>(
+    venue?.artists ?? [],
+  );
+  const [artistName, setArtistName] = useState("");
+  const [artistYear, setArtistYear] = useState("");
 
   function set<K extends keyof FormState>(field: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -120,6 +135,40 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
         await createVenue(payload);
       }
       onSaved();
+    } catch (err) {
+      fail(err);
+    }
+  }
+
+  async function addArtist() {
+    if (!venue || !artistName.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await addAppearance(
+        venue.id,
+        artistName.trim(),
+        artistYear.trim() || null,
+      );
+      setAppearances(updated.artists);
+      setArtistName("");
+      setArtistYear("");
+      setBusy(false);
+    } catch (err) {
+      fail(err);
+    }
+  }
+
+  async function removeArtist(artistId: number) {
+    if (!venue) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await removeAppearance(venue.id, artistId);
+      setAppearances((current) =>
+        current.filter((a) => a.artist_id !== artistId),
+      );
+      setBusy(false);
     } catch (err) {
       fail(err);
     }
@@ -200,6 +249,14 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
                 <input
                   value={form.city}
                   onChange={(e) => set("city", e.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>Region</span>
+                <input
+                  value={form.region}
+                  onChange={(e) => set("region", e.target.value)}
+                  placeholder="e.g. Vaud, Occitanie"
                 />
               </label>
               <label className="field">
@@ -316,7 +373,7 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
                   onChange={(e) => set("fit_score", e.target.value)}
                 />
               </label>
-              <label className="field field-wide">
+              <label className="field">
                 <span>Source</span>
                 <input
                   value={form.source}
@@ -324,8 +381,81 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
                   placeholder="how you found this venue"
                 />
               </label>
+              <label className="field">
+                <span>Added by</span>
+                <select
+                  value={form.added_by}
+                  onChange={(e) => set("added_by", e.target.value)}
+                >
+                  <option value="">—</option>
+                  {ADDED_BY_OPTIONS.map((person) => (
+                    <option key={person} value={person}>
+                      {person}
+                    </option>
+                  ))}
+                  {form.added_by &&
+                    !ADDED_BY_OPTIONS.includes(
+                      form.added_by as (typeof ADDED_BY_OPTIONS)[number],
+                    ) && <option value={form.added_by}>{form.added_by}</option>}
+                </select>
+              </label>
             </div>
           </fieldset>
+
+          {venue && (
+            <section className="sheet-section" aria-label="Who played here">
+              <h3 className="sheet-legend">Who played here</h3>
+              {appearances.length === 0 ? (
+                <p className="appearance-empty">
+                  No reference artists noted yet.
+                </p>
+              ) : (
+                <ul className="appearance-list">
+                  {appearances.map((appearance) => (
+                    <li className="appearance" key={appearance.artist_id}>
+                      <span className="appearance-name">{appearance.name}</span>
+                      {appearance.year && (
+                        <span className="appearance-year">
+                          {appearance.year}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        className="appearance-remove"
+                        onClick={() => removeArtist(appearance.artist_id)}
+                        disabled={busy}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="appearance-add">
+                <input
+                  aria-label="Artist name"
+                  placeholder="Artist"
+                  value={artistName}
+                  onChange={(e) => setArtistName(e.target.value)}
+                />
+                <input
+                  aria-label="Year or edition"
+                  placeholder="Year / edition"
+                  className="appearance-year-input"
+                  value={artistYear}
+                  onChange={(e) => setArtistYear(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="appearance-add-button"
+                  onClick={addArtist}
+                  disabled={busy || !artistName.trim()}
+                >
+                  Add
+                </button>
+              </div>
+            </section>
+          )}
 
           {error && <p className="sheet-error">{error}</p>}
 

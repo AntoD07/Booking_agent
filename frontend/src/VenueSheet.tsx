@@ -21,6 +21,25 @@ import {
 } from "./types";
 import "./VenueSheet.css";
 
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+// Current year through the season after next; a venue's saved year is
+// appended at render time if it falls outside this window.
+const DEADLINE_YEARS = ["2026", "2027", "2028"];
+
 interface FormState {
   name: string;
   type: VenueType;
@@ -33,7 +52,8 @@ interface FormState {
   contact_email: string;
   application_method: string;
   application_url: string;
-  application_deadline: string;
+  deadline_month: string; // "01".."12" or ""
+  deadline_year: string; // "2026".. or ""
   event_dates: string;
   website: string;
   research_notes: string;
@@ -56,7 +76,8 @@ function initForm(venue: Venue | null): FormState {
     contact_email: venue?.contact_email ?? "",
     application_method: venue?.application_method ?? "",
     application_url: venue?.application_url ?? "",
-    application_deadline: venue?.application_deadline ?? "",
+    deadline_month: venue?.application_deadline?.slice(5, 7) ?? "",
+    deadline_year: venue?.application_deadline?.slice(0, 4) ?? "",
     event_dates: venue?.event_dates ?? "",
     website: venue?.website ?? "",
     research_notes: venue?.research_notes ?? "",
@@ -85,7 +106,11 @@ function toPayload(
     contact_email: text(form.contact_email),
     application_method: text(form.application_method),
     application_url: text(form.application_url),
-    application_deadline: text(form.application_deadline),
+    // Month granularity, stored as the first of the month.
+    application_deadline:
+      form.deadline_month && form.deadline_year
+        ? `${form.deadline_year}-${form.deadline_month}-01`
+        : null,
     event_dates: text(form.event_dates),
     website: text(form.website),
     research_notes: text(form.research_notes),
@@ -121,16 +146,21 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
 
   function set<K extends keyof FormState>(field: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [field]: value }));
-    if (confidence[field]) {
+    // The two deadline selects map onto the single API field.
+    const confKey =
+      field === "deadline_month" || field === "deadline_year"
+        ? "application_deadline"
+        : field;
+    if (confidence[confKey]) {
       setConfidence((current) => {
         const next = { ...current };
-        delete next[field];
+        delete next[confKey];
         return next;
       });
     }
   }
 
-  function confidenceDot(field: keyof FormState) {
+  function confidenceDot(field: string) {
     const level = confidence[field];
     if (!level) return null;
     return (
@@ -299,14 +329,44 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
           <fieldset className="sheet-section">
             <legend className="sheet-legend">Application</legend>
             <div className="sheet-grid">
-              <label className="field">
+              <div className="field">
                 <span>Application deadline{confidenceDot("application_deadline")}</span>
-                <input
-                  type="date"
-                  value={form.application_deadline}
-                  onChange={(e) => set("application_deadline", e.target.value)}
-                />
-              </label>
+                <div className="deadline-selects">
+                  <select
+                    aria-label="Deadline month"
+                    value={form.deadline_month}
+                    onChange={(e) => set("deadline_month", e.target.value)}
+                  >
+                    <option value="">Month —</option>
+                    {MONTHS.map((month, index) => {
+                      const value = String(index + 1).padStart(2, "0");
+                      return (
+                        <option key={value} value={value}>
+                          {month}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <select
+                    aria-label="Deadline year"
+                    value={form.deadline_year}
+                    onChange={(e) => set("deadline_year", e.target.value)}
+                  >
+                    <option value="">Year —</option>
+                    {[
+                      ...DEADLINE_YEARS,
+                      ...(form.deadline_year &&
+                      !DEADLINE_YEARS.includes(form.deadline_year)
+                        ? [form.deadline_year]
+                        : []),
+                    ].map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <label className="field">
                 <span>Event dates{confidenceDot("event_dates")}</span>
                 <input

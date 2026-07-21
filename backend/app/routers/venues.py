@@ -3,8 +3,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Venue
-from app.schemas import VenueCreate, VenueOut, VenueUpdate
+from app.models import Artist, Venue, VenueArtist
+from app.schemas import AppearanceCreate, VenueCreate, VenueOut, VenueUpdate
 from app.security import require_session
 
 router = APIRouter(
@@ -54,4 +54,37 @@ def update_venue(
 def delete_venue(venue_id: int, db: Session = Depends(get_db)) -> None:
     venue = _get_or_404(db, venue_id)
     db.delete(venue)
+    db.commit()
+
+
+@router.post("/{venue_id}/artists", response_model=VenueOut)
+def add_appearance(
+    venue_id: int, payload: AppearanceCreate, db: Session = Depends(get_db)
+) -> Venue:
+    """Record that a reference artist played this venue (creating the artist
+    by name if needed). Posting the same artist again updates the year."""
+    venue = _get_or_404(db, venue_id)
+    artist = db.scalar(select(Artist).where(Artist.name == payload.name))
+    if artist is None:
+        artist = Artist(name=payload.name)
+        db.add(artist)
+        db.flush()
+    link = db.get(VenueArtist, (venue_id, artist.id))
+    if link is None:
+        db.add(VenueArtist(venue_id=venue_id, artist_id=artist.id, year=payload.year))
+    else:
+        link.year = payload.year
+    db.commit()
+    db.refresh(venue)
+    return venue
+
+
+@router.delete("/{venue_id}/artists/{artist_id}", status_code=204)
+def remove_appearance(
+    venue_id: int, artist_id: int, db: Session = Depends(get_db)
+) -> None:
+    link = db.get(VenueArtist, (venue_id, artist_id))
+    if link is None:
+        raise HTTPException(status_code=404, detail="Appearance not found")
+    db.delete(link)
     db.commit()

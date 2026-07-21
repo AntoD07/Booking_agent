@@ -1,4 +1,4 @@
-import type { Venue, VenueInput } from "./types";
+import type { Artist, Suggestion, Venue, VenueInput } from "./types";
 
 export class UnauthorizedError extends Error {}
 
@@ -68,6 +68,34 @@ export function addAppearance(
   return request(`/api/venues/${venueId}/artists`, {
     method: "POST",
     body: JSON.stringify({ name, year }),
+  });
+}
+
+export function fetchArtists(): Promise<Artist[]> {
+  return request("/api/artists");
+}
+
+export function discoverVenues(
+  artists: string[],
+): Promise<{ suggestions: Suggestion[] }> {
+  return request("/api/discovery", {
+    method: "POST",
+    body: JSON.stringify({ artists }),
+  });
+}
+
+export function acceptSuggestion(suggestion: Suggestion): Promise<Venue> {
+  return request("/api/discovery/accept", {
+    method: "POST",
+    body: JSON.stringify({
+      name: suggestion.name,
+      type: suggestion.type,
+      city: suggestion.city,
+      country: suggestion.country,
+      website: suggestion.website,
+      artist: suggestion.artist,
+      source_url: suggestion.source_url,
+    }),
   });
 }
 

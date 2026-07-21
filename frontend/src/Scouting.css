@@ -1,0 +1,259 @@
+.scouting-page {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.scouting-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 1.5rem 1.25rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.scouting-overline {
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.25rem;
+}
+
+.scouting-title {
+  font-size: 1.9rem;
+}
+
+.scouting-back {
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.scouting-back:hover {
+  color: var(--accent);
+}
+
+.scouting-main {
+  width: 100%;
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+.scouting-lede {
+  margin: 0 0 1.5rem;
+  color: var(--ink-soft);
+}
+
+.scouting-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.scouting-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.scouting-optional {
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--ink-soft);
+}
+
+.scouting-input {
+  font-family: var(--sans);
+  font-size: 1rem;
+  color: var(--ink);
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.55rem 0.7rem;
+}
+
+.scouting-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.scouting-submit {
+  align-self: flex-start;
+  padding: 0.55rem 1.3rem;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  color: var(--paper-raised);
+  background: var(--accent);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+
+.scouting-submit:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.scouting-submit:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.scouting-status {
+  margin: 1.25rem 0 0;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.scouting-error {
+  margin: 1.25rem 0 0;
+  color: var(--accent);
+}
+
+.scouting-results {
+  margin-top: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.scouting-results-title {
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.scouting-results-count {
+  font-weight: 400;
+  color: var(--accent);
+}
+
+.scouting-results-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.suggestion-card {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.9rem 1rem;
+}
+
+.suggestion-name {
+  font-size: 1.15rem;
+  line-height: 1.25;
+}
+
+.suggestion-meta {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.suggestion-artist {
+  margin: 0.55rem 0 0;
+  font-size: 0.9rem;
+  color: var(--accent);
+}
+
+.suggestion-links {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  display: flex;
+  gap: 1rem;
+}
+
+.suggestion-known {
+  margin: 0.7rem 0 0;
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--ink-soft);
+  border-top: 1px solid var(--line);
+  padding-top: 0.55rem;
+}
+
+.suggestion-accepted {
+  margin: 0.7rem 0 0;
+  font-size: 0.9rem;
+  color: var(--accent);
+  border-top: 1px solid var(--line);
+  padding-top: 0.55rem;
+}
+
+.suggestion-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.7rem;
+}
+
+.suggestion-accept {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  color: var(--paper-raised);
+  background: var(--accent);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+
+.suggestion-accept:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.suggestion-accept:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.suggestion-dismiss {
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.suggestion-dismiss:hover {
+  color: var(--accent);
+}
+
+@media (min-width: 640px) {
+  .scouting-header {
+    padding: 2rem 1.5rem 1.25rem;
+  }
+
+  .scouting-title {
+    font-size: 2.25rem;
+  }
+
+  .scouting-main {
+    padding: 2rem 1.5rem 3rem;
+  }
+}

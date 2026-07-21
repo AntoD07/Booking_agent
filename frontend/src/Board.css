@@ -47,6 +47,19 @@
   opacity: 0.92;
 }
 
+.board-scouting {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.board-scouting:hover {
+  text-decoration: underline;
+}
+
 .board-signout {
   background: none;
   border: none;

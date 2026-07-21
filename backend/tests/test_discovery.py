@@ -51,16 +51,24 @@ def _response(text: str, stop_reason: str = "end_turn") -> SimpleNamespace:
 def api_key(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
 
+def _scan(client, path, payload):
+    """Start a scan and return its finished job (TestClient runs background
+    tasks before the POST returns, so the job is already terminal)."""
+    started = client.post(path, json=payload)
+    assert started.status_code == 202
+    job = client.get(f"/api/discovery/jobs/{started.json()['job_id']}")
+    assert job.status_code == 200
+    return job.json()
+
+
 
 def test_discover_returns_parsed_suggestions(auth_client, api_key, monkeypatch):
     monkeypatch.setattr(
         discovery, "_create_message", lambda client, messages: _response(CLAUDE_REPLY)
     )
-    response = auth_client.post(
-        "/api/discovery", json={"artists": ["Rhythm Future Quartet"]}
-    )
-    assert response.status_code == 200
-    suggestions = response.json()["suggestions"]
+    job = _scan(auth_client, "/api/discovery", {"artists": ["Rhythm Future Quartet"]})
+    assert job["status"] == "done"
+    suggestions = job["suggestions"]
     # The blank-name entry is dropped
     assert [s["name"] for s in suggestions] == [
         "Festival Django Reinhardt",
@@ -87,11 +95,8 @@ def test_discover_marks_venues_already_in_pipeline(auth_client, api_key, monkeyp
     monkeypatch.setattr(
         discovery, "_create_message", lambda client, messages: _response(CLAUDE_REPLY)
     )
-    response = auth_client.post(
-        "/api/discovery", json={"artists": ["Rhythm Future Quartet"]}
-    )
-    assert response.status_code == 200
-    suggestions = {s["name"]: s for s in response.json()["suggestions"]}
+    job = _scan(auth_client, "/api/discovery", {"artists": ["Rhythm Future Quartet"]})
+    suggestions = {s["name"]: s for s in job["suggestions"]}
     # Same words in a different order still count as a match
     match = suggestions["Festival Django Reinhardt"]
     assert match["already_in_pipeline"] is True
@@ -112,14 +117,12 @@ def test_discover_continues_after_pause_turn(auth_client, api_key, monkeypatch):
         return responses[len(calls) - 1]
 
     monkeypatch.setattr(discovery, "_create_message", fake_create)
-    response = auth_client.post(
-        "/api/discovery", json={"artists": ["Rhythm Future Quartet"]}
-    )
-    assert response.status_code == 200
+    job = _scan(auth_client, "/api/discovery", {"artists": ["Rhythm Future Quartet"]})
+    assert job["status"] == "done"
     assert len(calls) == 2
     # The paused assistant turn is re-sent so the server can resume
     assert calls[1][-1]["role"] == "assistant"
-    assert len(response.json()["suggestions"]) == 2
+    assert len(job["suggestions"]) == 2
 
 
 def test_discover_requires_api_key(auth_client, monkeypatch):
@@ -155,12 +158,13 @@ def test_discover_stamps_last_scanned_on_known_artists(
     monkeypatch.setattr(
         discovery, "_create_message", lambda client, messages: _response(CLAUDE_REPLY)
     )
-    response = auth_client.post(
-        # Case-insensitive name match; free-text names without a row are fine
+    # Case-insensitive name match; free-text names without a row are fine
+    job = _scan(
+        auth_client,
         "/api/discovery",
-        json={"artists": ["rhythm future quartet", "Someone Unknown"]},
+        {"artists": ["rhythm future quartet", "Someone Unknown"]},
     )
-    assert response.status_code == 200
+    assert job["status"] == "done"
 
     artists = {a["name"]: a for a in auth_client.get("/api/artists").json()}
     assert artists["Rhythm Future Quartet"]["last_scanned"] is not None
@@ -168,14 +172,20 @@ def test_discover_stamps_last_scanned_on_known_artists(
     assert "Someone Unknown" not in artists
 
 
-def test_discover_unusable_reply_is_502(auth_client, api_key, monkeypatch):
+def test_discover_unusable_reply_fails_the_job(auth_client, api_key, monkeypatch):
     monkeypatch.setattr(
         discovery,
         "_create_message",
         lambda client, messages: _response("Sorry, I found nothing."),
     )
-    response = auth_client.post("/api/discovery", json={"artists": ["Someone"]})
-    assert response.status_code == 502
+    job = _scan(auth_client, "/api/discovery", {"artists": ["Someone"]})
+    assert job["status"] == "failed"
+    assert "Discovery failed" in job["error"]
+    assert job["suggestions"] is None
+
+
+def test_unknown_scan_job_is_404(auth_client):
+    assert auth_client.get("/api/discovery/jobs/nope").status_code == 404
 
 
 def test_discover_requires_auth(client):
@@ -259,16 +269,17 @@ def test_general_scan_returns_suggestions(auth_client, api_key, monkeypatch):
         return _response(GENERAL_REPLY)
 
     monkeypatch.setattr(discovery, "_create_message", fake_create)
-    response = auth_client.post(
+    job = _scan(
+        auth_client,
         "/api/discovery/general",
-        json={
+        {
             "region": "south of France",
             "event_type": "festival",
             "period": "summer 2027",
         },
     )
-    assert response.status_code == 200
-    suggestions = response.json()["suggestions"]
+    assert job["status"] == "done"
+    suggestions = job["suggestions"]
     assert [s["name"] for s in suggestions] == ["Jazz in Marciac", "Le Petit Duc"]
     assert suggestions[0]["event_dates"] == "Late July to mid-August 2027"
     assert suggestions[0]["artist"] is None
@@ -287,11 +298,8 @@ def test_general_scan_marks_venues_already_in_pipeline(
     monkeypatch.setattr(
         discovery, "_create_message", lambda client, messages: _response(GENERAL_REPLY)
     )
-    response = auth_client.post(
-        "/api/discovery/general", json={"region": "Occitanie"}
-    )
-    assert response.status_code == 200
-    suggestions = {s["name"]: s for s in response.json()["suggestions"]}
+    job = _scan(auth_client, "/api/discovery/general", {"region": "Occitanie"})
+    suggestions = {s["name"]: s for s in job["suggestions"]}
     assert suggestions["Jazz in Marciac"]["already_in_pipeline"] is True
     assert suggestions["Le Petit Duc"]["already_in_pipeline"] is False
 

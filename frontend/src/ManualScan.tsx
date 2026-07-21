@@ -4,6 +4,7 @@ import {
   acceptSuggestion,
   discoverVenues,
   fetchArtists,
+  fetchScanJob,
   generalScan,
 } from "./api";
 import {
@@ -16,6 +17,10 @@ import {
 import "./ManualScan.css";
 
 const MAX_ARTISTS = 5;
+const POLL_INTERVAL_MS = 4000;
+// Backend requests are capped server-side; if a job somehow never settles,
+// stop asking after this long.
+const MAX_WAIT_MS = 12 * 60 * 1000;
 
 type Mode = "artists" | "general";
 type ReviewState = "pending" | "accepting" | "accepted" | "dismissed";
@@ -110,15 +115,37 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
     setExtraInput("");
   };
 
-  const runScan = async (scan: () => Promise<{ suggestions: Suggestion[] }>) => {
+  // Scans run as background jobs on the server (they take minutes — too
+  // long for one HTTP request to survive proxies and mobile browsers), so
+  // we start the job and poll until it settles.
+  const runScan = async (start: () => Promise<{ job_id: string }>) => {
     setScanning(true);
     setError(null);
     setSuggestions([]);
     try {
-      const result = await scan();
-      setSuggestions(result.suggestions);
-      setReview(result.suggestions.map(() => "pending"));
-      setScanned(true);
+      const { job_id } = await start();
+      const startedAt = Date.now();
+      for (;;) {
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        const job = await fetchScanJob(job_id);
+        if (job.status === "done") {
+          const found = job.suggestions ?? [];
+          setSuggestions(found);
+          setReview(found.map(() => "pending"));
+          setScanned(true);
+          break;
+        }
+        if (job.status === "failed") {
+          setError(job.error ?? "The scan failed — try again.");
+          break;
+        }
+        if (Date.now() - startedAt > MAX_WAIT_MS) {
+          setError(
+            "The scan is taking unusually long. Leave it and try again in a few minutes.",
+          );
+          break;
+        }
+      }
     } catch (err) {
       handleError(err);
     } finally {

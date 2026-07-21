@@ -22,12 +22,15 @@ export const STATUS_LABELS: Record<VenueStatus, string> = {
   not_a_fit: "Not a fit",
 };
 
-export type VenueType =
-  | "festival"
-  | "venue"
-  | "jazz_club"
-  | "bar"
-  | "cultural_center";
+export const VENUE_TYPES = [
+  "festival",
+  "venue",
+  "jazz_club",
+  "bar",
+  "cultural_center",
+] as const;
+
+export type VenueType = (typeof VENUE_TYPES)[number];
 
 export const TYPE_LABELS: Record<VenueType, string> = {
   festival: "Festival",
@@ -40,6 +43,27 @@ export const TYPE_LABELS: Record<VenueType, string> = {
 export interface ArtistSummary {
   id: number;
   name: string;
+}
+
+/** Payload for creating or updating a venue — everything but id/artists. */
+export interface VenueInput {
+  name: string;
+  type: VenueType;
+  country: string | null;
+  city: string | null;
+  status: VenueStatus;
+  fit_score: number | null;
+  booking_contact: string | null;
+  contact_email: string | null;
+  application_method: string | null;
+  application_url: string | null;
+  application_deadline: string | null;
+  event_dates: string | null;
+  website: string | null;
+  research_notes: string | null;
+  last_contact: string | null;
+  next_action: string | null;
+  source: string | null;
 }
 
 export interface Venue {

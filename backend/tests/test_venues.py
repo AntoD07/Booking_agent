@@ -16,11 +16,19 @@ def test_venue_crud(auth_client):
     assert [v["name"] for v in listed] == ["Sunside"]
 
     patched = auth_client.patch(
-        f"/api/venues/{venue['id']}", json={"status": "sent", "fit_score": 4.2}
+        f"/api/venues/{venue['id']}",
+        json={
+            "status": "sent",
+            "fit_score": 4.2,
+            "region": "Île-de-France",
+            "added_by": "Antony",
+        },
     )
     assert patched.status_code == 200
     assert patched.json()["status"] == "sent"
     assert patched.json()["fit_score"] == 4.2
+    assert patched.json()["region"] == "Île-de-France"
+    assert patched.json()["added_by"] == "Antony"
 
     assert auth_client.delete(f"/api/venues/{venue['id']}").status_code == 204
     assert auth_client.get(f"/api/venues/{venue['id']}").status_code == 404

@@ -60,6 +60,41 @@
   color: var(--accent);
 }
 
+.board-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.25rem 0;
+}
+
+.board-filter {
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+  max-width: 46vw;
+}
+
+.board-filter:focus {
+  outline: none;
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.board-filter-clear {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.4rem 0.2rem;
+}
+
 .board-error {
   padding: 0.75rem 1.25rem;
   color: var(--accent);
@@ -179,6 +214,14 @@
 
   .board-header {
     padding: 2rem 1.5rem 1.25rem;
+  }
+
+  .board-filters {
+    padding: 1rem 1.5rem 0;
+  }
+
+  .board-filter {
+    max-width: none;
   }
 
   .board-title {

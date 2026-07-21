@@ -59,3 +59,23 @@ export function updateVenue(
 export function deleteVenue(id: number): Promise<void> {
   return request(`/api/venues/${id}`, { method: "DELETE" });
 }
+
+export function addAppearance(
+  venueId: number,
+  name: string,
+  year: string | null,
+): Promise<Venue> {
+  return request(`/api/venues/${venueId}/artists`, {
+    method: "POST",
+    body: JSON.stringify({ name, year }),
+  });
+}
+
+export function removeAppearance(
+  venueId: number,
+  artistId: number,
+): Promise<void> {
+  return request(`/api/venues/${venueId}/artists/${artistId}`, {
+    method: "DELETE",
+  });
+}

@@ -1,10 +1,19 @@
 # CLAUDE.md — Gig Pipeline
 
+## Who we are & the goal
+
+We are a **gypsy jazz (jazz manouche) quartet** — 300+ concerts played,
+first album out. The single goal of this app is to **get the band booked
+in jazz venues and festivals across Europe for the 2027 season**: find the
+right programmers, pitch them, follow up, confirm dates. Every feature,
+piece of UI copy, email draft, and research task should serve that goal
+and speak from the band's perspective.
+
 ## What this project is
 
-A booking-management web app for a Gypsy jazz quartet (300+ concerts, first
-album out) targeting European festivals, venues, and jazz bars for the 2027
-season. It replaces a Notion-based workflow.
+A booking-management web app for that quartet, targeting European festivals,
+venues, and jazz bars for the 2027 season. It replaces a Notion-based
+workflow.
 
 Core jobs, in priority order:
 1. **Pipeline tracking** — venues/festivals as cards moving through statuses:
@@ -77,9 +86,9 @@ not admin panel.
 ## Data model (phase 1)
 
 - `Venue`: name, type (festival/venue/jazz club/bar/cultural center), country,
-  city, status, fit_score, booking_contact, contact_email, application_method,
+  region, city, status, fit_score, booking_contact, contact_email, application_method,
   application_url, application_deadline, event_dates, website, research_notes,
-  last_contact, next_action, source.
+  last_contact, next_action, source, added_by.
 - `Artist` (reference artist): name, styles, country_base, similarity,
   gig_feed_url, website, last_scanned, notes.
 - `VenueArtist`: many-to-many — which reference artists played which venue.

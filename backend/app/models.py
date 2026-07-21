@@ -1,7 +1,7 @@
 import enum
 from datetime import date, datetime, timezone
 
-from sqlalchemy import Date, DateTime, Enum, Float, ForeignKey, String, Text
+from sqlalchemy import JSON, Date, DateTime, Enum, Float, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -59,6 +59,9 @@ class Venue(Base):
     next_action: Mapped[str | None] = mapped_column(String(300))
     source: Mapped[str | None] = mapped_column(String(200))
     added_by: Mapped[str | None] = mapped_column(String(100))
+    # Per-field research confidence for values filled by Claude,
+    # e.g. {"contact_email": "high"}. Cleared per field when a human edits it.
+    field_confidence: Mapped[dict | None] = mapped_column(JSON)
 
     artists: Mapped[list["VenueArtist"]] = relationship(
         back_populates="venue", cascade="all, delete-orphan"

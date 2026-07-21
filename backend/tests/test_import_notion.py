@@ -41,6 +41,25 @@ def test_import_populates_and_removes_placeholders(client):
         assert django.contact_email == "Contact@festivaldjangoreinhardt.com"
 
 
+def test_import_includes_enrichment(client):
+    run_import()
+    with SessionLocal() as db:
+        # Web-researched email carries a confidence marker.
+        huchette = db.scalar(select(Venue).where(Venue.name == "Caveau de la Huchette"))
+        assert huchette.contact_email == "artiste@caveaudelahuchette.fr"
+        assert huchette.field_confidence["contact_email"] == "high"
+
+        # The two re-identified cards use their corrected names.
+        assert db.scalar(select(Venue).where(Venue.name == "Au Grès du Jazz")) is not None
+        assert db.scalar(select(Venue).where(Venue.name == "Colmar Jazz Festival")) is not None
+        assert db.scalar(select(Venue).where(Venue.name == "Festival Jazz aux Gres")) is None
+
+        # Human-entered data was not overwritten by enrichment.
+        juan = db.scalar(select(Venue).where(Venue.name == "Jazz à Juan"))
+        assert juan.contact_email == "diane.mazmanian@antibesjuanlespins.com"
+        assert "contact_email" not in (juan.field_confidence or {})
+
+
 def test_import_is_idempotent_and_keeps_edits(client):
     run_import()
 

@@ -31,6 +31,7 @@ class VenueBase(BaseModel):
     next_action: str | None = None
     source: str | None = None
     added_by: str | None = None
+    field_confidence: dict[str, str] | None = None
 
     _validate_name = field_validator("name")(_require_name)
 
@@ -59,6 +60,7 @@ class VenueUpdate(BaseModel):
     next_action: str | None = None
     source: str | None = None
     added_by: str | None = None
+    field_confidence: dict[str, str] | None = None
 
     # PATCH omitting name is fine, but an explicit blank/null name would
     # violate the not-null column, so reject it up front.

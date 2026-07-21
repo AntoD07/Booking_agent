@@ -41,6 +41,7 @@ class Venue(Base):
         Enum(VenueType, native_enum=False, length=30), default=VenueType.venue
     )
     country: Mapped[str | None] = mapped_column(String(100))
+    region: Mapped[str | None] = mapped_column(String(100))
     city: Mapped[str | None] = mapped_column(String(100))
     status: Mapped[VenueStatus] = mapped_column(
         Enum(VenueStatus, native_enum=False, length=30), default=VenueStatus.discovered
@@ -57,9 +58,10 @@ class Venue(Base):
     last_contact: Mapped[date | None] = mapped_column(Date)
     next_action: Mapped[str | None] = mapped_column(String(300))
     source: Mapped[str | None] = mapped_column(String(200))
+    added_by: Mapped[str | None] = mapped_column(String(100))
 
-    artists: Mapped[list["Artist"]] = relationship(
-        secondary="venue_artists", back_populates="venues"
+    artists: Mapped[list["VenueArtist"]] = relationship(
+        back_populates="venue", cascade="all, delete-orphan"
     )
     drafts: Mapped[list["EmailDraft"]] = relationship(
         back_populates="venue", cascade="all, delete-orphan"
@@ -79,12 +81,14 @@ class Artist(Base):
     last_scanned: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     notes: Mapped[str | None] = mapped_column(Text)
 
-    venues: Mapped[list[Venue]] = relationship(
-        secondary="venue_artists", back_populates="artists"
+    appearances: Mapped[list["VenueArtist"]] = relationship(
+        back_populates="artist", cascade="all, delete-orphan"
     )
 
 
 class VenueArtist(Base):
+    """An appearance of a reference artist at a venue, optionally dated."""
+
     __tablename__ = "venue_artists"
 
     venue_id: Mapped[int] = mapped_column(
@@ -93,6 +97,14 @@ class VenueArtist(Base):
     artist_id: Mapped[int] = mapped_column(
         ForeignKey("artists.id", ondelete="CASCADE"), primary_key=True
     )
+    year: Mapped[str | None] = mapped_column(String(50))
+
+    venue: Mapped[Venue] = relationship(back_populates="artists")
+    artist: Mapped[Artist] = relationship(back_populates="appearances")
+
+    @property
+    def name(self) -> str:
+        return self.artist.name
 
 
 class EmailDraft(Base):

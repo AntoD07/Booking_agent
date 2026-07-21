@@ -15,6 +15,7 @@ class VenueBase(BaseModel):
     name: str
     type: VenueType = VenueType.venue
     country: str | None = None
+    region: str | None = None
     city: str | None = None
     status: VenueStatus = VenueStatus.discovered
     fit_score: float | None = None
@@ -29,6 +30,7 @@ class VenueBase(BaseModel):
     last_contact: date | None = None
     next_action: str | None = None
     source: str | None = None
+    added_by: str | None = None
 
     _validate_name = field_validator("name")(_require_name)
 
@@ -41,6 +43,7 @@ class VenueUpdate(BaseModel):
     name: str | None = None
     type: VenueType | None = None
     country: str | None = None
+    region: str | None = None
     city: str | None = None
     status: VenueStatus | None = None
     fit_score: float | None = None
@@ -55,24 +58,35 @@ class VenueUpdate(BaseModel):
     last_contact: date | None = None
     next_action: str | None = None
     source: str | None = None
+    added_by: str | None = None
 
     # PATCH omitting name is fine, but an explicit blank/null name would
     # violate the not-null column, so reject it up front.
     _validate_name = field_validator("name")(_require_name)
 
 
-class ArtistSummary(BaseModel):
+class VenueArtistOut(BaseModel):
+    """A reference-artist appearance at a venue (name + optional year/edition)."""
+
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    artist_id: int
     name: str
+    year: str | None = None
+
+
+class AppearanceCreate(BaseModel):
+    name: str
+    year: str | None = None
+
+    _validate_name = field_validator("name")(_require_name)
 
 
 class VenueOut(VenueBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    artists: list[ArtistSummary] = []
+    artists: list[VenueArtistOut] = []
 
 
 class ArtistBase(BaseModel):

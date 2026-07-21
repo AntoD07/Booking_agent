@@ -19,9 +19,10 @@ from app.models import VenueType
 
 DISCOVERY_MODEL = "claude-opus-4-8"
 MAX_WEB_SEARCHES = 12
-# Per-request ceiling. Without it the SDK waits 10 minutes and then quietly
-# retries, which is how a scan turns into a half-hour zombie.
-REQUEST_TIMEOUT_SECONDS = 240.0
+# With streaming this bounds the wait for the next event, not the whole
+# scan — a healthy scan sends events continuously, so a long gap means the
+# request is stuck and should fail rather than zombie.
+REQUEST_TIMEOUT_SECONDS = 300.0
 # Server-side tool loops can stop with stop_reason "pause_turn"; the request
 # must be re-sent to let the search continue. Bounded to avoid infinite loops.
 MAX_CONTINUATIONS = 5
@@ -85,10 +86,16 @@ class DiscoveryError(Exception):
 
 
 def _create_message(client: anthropic.Anthropic, messages: list) -> anthropic.types.Message:
-    return client.messages.create(
+    # Streamed because a web-search turn runs for minutes: a non-streaming
+    # request sits idle the whole time and dies on connection timeouts,
+    # while a stream keeps the connection alive until the turn completes.
+    with client.messages.stream(
         model=DISCOVERY_MODEL,
         max_tokens=8000,
         thinking={"type": "adaptive"},
+        # Scans are retrieval, not hard reasoning; medium is faster and
+        # plenty for this task.
+        output_config={"effort": "medium"},
         tools=[
             {
                 "type": "web_search_20260209",
@@ -97,7 +104,8 @@ def _create_message(client: anthropic.Anthropic, messages: list) -> anthropic.ty
             }
         ],
         messages=messages,
-    )
+    ) as stream:
+        return stream.get_final_message()
 
 
 def run_discovery(artist_names: list[str]) -> list[dict]:

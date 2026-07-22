@@ -81,6 +81,19 @@ export function fetchArtists(): Promise<Artist[]> {
   return request("/api/artists");
 }
 
+export function deleteArtist(id: number): Promise<void> {
+  return request(`/api/artists/${id}`, { method: "DELETE" });
+}
+
+/** Cheap end-to-end Claude connectivity check (fractions of a cent). */
+export function pingDiscovery(): Promise<{
+  ok: boolean;
+  model: string;
+  seconds: number;
+}> {
+  return request("/api/discovery/ping");
+}
+
 /** Scans run as background jobs; start one, then poll fetchScanJob. */
 export function discoverVenues(
   artists: string[],

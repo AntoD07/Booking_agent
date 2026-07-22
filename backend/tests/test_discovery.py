@@ -340,6 +340,35 @@ def test_accept_with_scan_source_and_event_dates(auth_client):
     assert venue["artists"] == []
 
 
+def test_ping_reports_connection(auth_client, api_key, monkeypatch):
+    monkeypatch.setattr(
+        discovery, "ping", lambda: {"ok": True, "model": "claude-opus-4-8", "seconds": 1.2}
+    )
+    response = auth_client.get("/api/discovery/ping")
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+
+
+def test_ping_requires_api_key(auth_client, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    assert auth_client.get("/api/discovery/ping").status_code == 503
+
+
+def test_accept_matches_artist_case_insensitively(auth_client):
+    created = auth_client.post("/api/artists", json={"name": "Die Drahtzieher"})
+    assert created.status_code == 201
+    artist_id = created.json()["id"]
+
+    response = auth_client.post(
+        "/api/discovery/accept",
+        json={"name": "Porgy & Bess", "artist": "die drahtzieher"},
+    )
+    assert response.status_code == 201
+    assert response.json()["artists"][0]["artist_id"] == artist_id
+    # No duplicate row was created
+    assert len(auth_client.get("/api/artists").json()) == 1
+
+
 def test_accept_without_artist(auth_client):
     response = auth_client.post(
         "/api/discovery/accept", json={"name": "Le Petit Duc"}

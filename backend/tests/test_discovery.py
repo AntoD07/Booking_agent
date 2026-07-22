@@ -64,7 +64,7 @@ def _scan(client, path, payload):
 
 def test_discover_returns_parsed_suggestions(auth_client, api_key, monkeypatch):
     monkeypatch.setattr(
-        discovery, "_create_message", lambda client, messages: _response(CLAUDE_REPLY)
+        discovery, "_create_message", lambda client, messages, *a, **kw: _response(CLAUDE_REPLY)
     )
     job = _scan(auth_client, "/api/discovery", {"artists": ["Rhythm Future Quartet"]})
     assert job["status"] == "done"
@@ -93,7 +93,7 @@ def test_discover_marks_venues_already_in_pipeline(auth_client, api_key, monkeyp
     venue_id = created.json()["id"]
 
     monkeypatch.setattr(
-        discovery, "_create_message", lambda client, messages: _response(CLAUDE_REPLY)
+        discovery, "_create_message", lambda client, messages, *a, **kw: _response(CLAUDE_REPLY)
     )
     job = _scan(auth_client, "/api/discovery", {"artists": ["Rhythm Future Quartet"]})
     suggestions = {s["name"]: s for s in job["suggestions"]}
@@ -112,7 +112,7 @@ def test_discover_continues_after_pause_turn(auth_client, api_key, monkeypatch):
     ]
     calls = []
 
-    def fake_create(client, messages):
+    def fake_create(client, messages, *args, **kwargs):
         calls.append(list(messages))
         return responses[len(calls) - 1]
 
@@ -156,7 +156,7 @@ def test_discover_stamps_last_scanned_on_known_artists(
     assert scanned.status_code == 201 and other.status_code == 201
 
     monkeypatch.setattr(
-        discovery, "_create_message", lambda client, messages: _response(CLAUDE_REPLY)
+        discovery, "_create_message", lambda client, messages, *a, **kw: _response(CLAUDE_REPLY)
     )
     # Case-insensitive name match; free-text names without a row are fine
     job = _scan(
@@ -176,7 +176,7 @@ def test_discover_unusable_reply_fails_the_job(auth_client, api_key, monkeypatch
     monkeypatch.setattr(
         discovery,
         "_create_message",
-        lambda client, messages: _response("Sorry, I found nothing."),
+        lambda client, messages, *a, **kw: _response("Sorry, I found nothing."),
     )
     job = _scan(auth_client, "/api/discovery", {"artists": ["Someone"]})
     assert job["status"] == "failed"
@@ -264,7 +264,7 @@ Here is what is programmed in that region.
 def test_general_scan_returns_suggestions(auth_client, api_key, monkeypatch):
     prompts = []
 
-    def fake_create(client, messages):
+    def fake_create(client, messages, *args, **kwargs):
         prompts.append(messages[0]["content"])
         return _response(GENERAL_REPLY)
 
@@ -296,7 +296,7 @@ def test_general_scan_marks_venues_already_in_pipeline(
     assert created.status_code == 201
 
     monkeypatch.setattr(
-        discovery, "_create_message", lambda client, messages: _response(GENERAL_REPLY)
+        discovery, "_create_message", lambda client, messages, *a, **kw: _response(GENERAL_REPLY)
     )
     job = _scan(auth_client, "/api/discovery/general", {"region": "Occitanie"})
     suggestions = {s["name"]: s for s in job["suggestions"]}

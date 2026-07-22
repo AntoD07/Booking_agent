@@ -68,6 +68,7 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
   const [acceptSource, setAcceptSource] = useState<string | null>(null);
   const [pinging, setPinging] = useState(false);
   const [pingResult, setPingResult] = useState<string | null>(null);
+  const [scanNote, setScanNote] = useState<string | null>(null);
 
   const loadArtists = () => {
     fetchArtists()
@@ -154,6 +155,7 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
     setScanning(true);
     setError(null);
     setSuggestions([]);
+    setScanNote(null);
     try {
       const { job_id } = await start();
       const startedAt = Date.now();
@@ -172,6 +174,9 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
             break;
           }
           throw err;
+        }
+        if (job.note) {
+          setScanNote(job.note);
         }
         if (job.status === "done") {
           const found = job.suggestions ?? [];
@@ -469,6 +474,12 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
         {scanning && (
           <p className="scan-status">
             Claude is searching — this can take a few minutes.
+            {scanNote && (
+              <span className="scan-note">
+                <br />
+                {scanNote}
+              </span>
+            )}
           </p>
         )}
         {error && <p className="scan-error">{error}</p>}

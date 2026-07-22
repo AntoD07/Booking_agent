@@ -58,9 +58,22 @@ def _create_job() -> str:
             "status": "running",
             "error": None,
             "result": None,
+            "note": None,
             "created_at": datetime.now(timezone.utc),
         }
     return job_id
+
+
+def _job_note(job_id: str) -> Callable[[str], None]:
+    """Progress callback: the scan reports steps, the poller shows them."""
+
+    def note(message: str) -> None:
+        with _jobs_lock:
+            job = _jobs.get(job_id)
+            if job is not None:
+                job["note"] = message
+
+    return note
 
 
 def _finish_job(
@@ -153,7 +166,7 @@ def discover(
     background_tasks.add_task(
         _run_scan_job,
         job_id,
-        lambda: discovery.run_discovery(payload.artists),
+        lambda: discovery.run_discovery(payload.artists, progress=_job_note(job_id)),
         payload.artists,
     )
     return ScanStarted(job_id=job_id)
@@ -170,7 +183,10 @@ def general_scan(
         _run_scan_job,
         job_id,
         lambda: discovery.run_general_discovery(
-            payload.region, payload.event_type, payload.period
+            payload.region,
+            payload.event_type,
+            payload.period,
+            progress=_job_note(job_id),
         ),
     )
     return ScanStarted(job_id=job_id)
@@ -201,6 +217,7 @@ def scan_job(job_id: str) -> ScanJobOut:
         job_id=job_id,
         status=job["status"],
         error=job["error"],
+        note=job["note"],
         suggestions=result.suggestions if result is not None else None,
     )
 

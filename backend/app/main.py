@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -5,6 +6,10 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.routers import artists, auth, discovery, venues
+
+# Without a handler, app loggers below WARNING are silently dropped —
+# uvicorn only configures its own loggers, not ours.
+logging.basicConfig(level=logging.INFO, format="%(levelname)s [%(name)s] %(message)s")
 
 app = FastAPI(title="Gig Pipeline")
 

@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from threading import Lock
@@ -5,7 +6,7 @@ from typing import Callable
 
 import anthropic
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import discovery
@@ -23,6 +24,8 @@ from app.schemas import (
     VenueOut,
 )
 from app.security import require_session
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/discovery",
@@ -63,6 +66,11 @@ def _create_job() -> str:
 def _finish_job(
     job_id: str, *, result: DiscoveryOut | None = None, error: str | None = None
 ) -> None:
+    if error:
+        logger.warning("scan job %s failed: %s", job_id, error)
+    else:
+        count = len(result.suggestions) if result else 0
+        logger.info("scan job %s done: %d suggestions", job_id, count)
     with _jobs_lock:
         job = _jobs.get(job_id)
         if job is not None:
@@ -112,6 +120,7 @@ def _run_scan_job(
         _finish_job(job_id, error="Could not reach the Claude API")
         return
     except Exception as exc:  # noqa: BLE001 — a job must never stay "running"
+        logger.exception("scan job %s crashed", job_id)
         _finish_job(job_id, error=f"Scan failed: {exc}")
         return
 
@@ -167,6 +176,20 @@ def general_scan(
     return ScanStarted(job_id=job_id)
 
 
+@router.get("/ping")
+def ping() -> dict:
+    """Cheap end-to-end check of the Claude connection (fractions of a cent)."""
+    _require_api_key()
+    try:
+        return discovery.ping()
+    except anthropic.APIStatusError as exc:
+        raise HTTPException(status_code=502, detail=f"Claude API error: {exc.message}")
+    except anthropic.APIConnectionError as exc:
+        raise HTTPException(
+            status_code=502, detail=f"Could not reach the Claude API: {exc}"
+        )
+
+
 @router.get("/jobs/{job_id}", response_model=ScanJobOut)
 def scan_job(job_id: str) -> ScanJobOut:
     with _jobs_lock:
@@ -214,7 +237,13 @@ def accept_suggestion(
     db.add(venue)
     db.flush()
     if payload.artist:
-        artist = db.scalar(select(Artist).where(Artist.name == payload.artist))
+        # Case-insensitive match so "die drahtzieher" doesn't duplicate
+        # "Die Drahtzieher" in the artists table.
+        artist = db.scalar(
+            select(Artist).where(
+                func.lower(Artist.name) == payload.artist.lower()
+            )
+        )
         if artist is None:
             artist = Artist(name=payload.artist)
             db.add(artist)

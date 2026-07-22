@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import {
   UnauthorizedError,
   acceptSuggestion,
+  deleteArtist,
   discoverVenues,
   fetchArtists,
   fetchScanJob,
   generalScan,
+  pingDiscovery,
 } from "./api";
 import {
   TYPE_LABELS,
@@ -64,6 +66,8 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
   const [review, setReview] = useState<ReviewState[]>([]);
   // Source label written on accepted venues; null lets the artist hook apply.
   const [acceptSource, setAcceptSource] = useState<string | null>(null);
+  const [pinging, setPinging] = useState(false);
+  const [pingResult, setPingResult] = useState<string | null>(null);
 
   const loadArtists = () => {
     fetchArtists()
@@ -94,6 +98,34 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
           ? names
           : [...names, name],
     );
+  };
+
+  const removeArtist = async (artist: Artist) => {
+    if (!window.confirm(`Remove “${artist.name}” from the artist list?`)) {
+      return;
+    }
+    try {
+      await deleteArtist(artist.id);
+      setSelected((names) => names.filter((n) => n !== artist.name));
+      loadArtists();
+    } catch (err) {
+      handleError(err);
+    }
+  };
+
+  const testConnection = async () => {
+    setPinging(true);
+    setPingResult(null);
+    try {
+      const result = await pingDiscovery();
+      setPingResult(`Claude answered in ${result.seconds}s — connection is fine.`);
+    } catch (err) {
+      setPingResult(
+        err instanceof Error ? err.message : "The connection test failed.",
+      );
+    } finally {
+      setPinging(false);
+    }
   };
 
   const addExtra = () => {
@@ -127,7 +159,20 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
       const startedAt = Date.now();
       for (;;) {
         await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-        const job = await fetchScanJob(job_id);
+        let job;
+        try {
+          job = await fetchScanJob(job_id);
+        } catch (err) {
+          if (err instanceof Error && err.message === "Scan not found") {
+            // The in-memory job vanished mid-scan: the server restarted
+            // (free hosting tiers do this). Nothing to recover.
+            setError(
+              "The server restarted during the scan and lost it. Try again in a minute.",
+            );
+            break;
+          }
+          throw err;
+        }
         if (job.status === "done") {
           const found = job.suggestions ?? [];
           setSuggestions(found);
@@ -277,6 +322,19 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
                       <span className="scan-artist-scanned">
                         {formatScanned(artist.last_scanned)}
                       </span>
+                      <button
+                        className="scan-artist-remove"
+                        type="button"
+                        aria-label={`Remove ${artist.name}`}
+                        title={`Remove ${artist.name} from the list`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          removeArtist(artist);
+                        }}
+                      >
+                        ×
+                      </button>
                     </label>
                   );
                 })}
@@ -396,9 +454,21 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
           </>
         )}
 
+        <p className="scan-ping">
+          <button
+            className="scan-ping-button"
+            type="button"
+            onClick={testConnection}
+            disabled={pinging}
+          >
+            {pinging ? "Testing…" : "Test the Claude connection"}
+          </button>
+          {pingResult && <span className="scan-ping-result">{pingResult}</span>}
+        </p>
+
         {scanning && (
           <p className="scan-status">
-            Claude is searching — this can take a minute or two.
+            Claude is searching — this can take a few minutes.
           </p>
         )}
         {error && <p className="scan-error">{error}</p>}

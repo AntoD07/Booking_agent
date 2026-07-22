@@ -9,13 +9,17 @@ discovery router, one suggestion at a time.
 
 import difflib
 import json
+import logging
 import re
+import time
 import unicodedata
 
 import anthropic
 
 from app.config import anthropic_api_key
 from app.models import VenueType
+
+logger = logging.getLogger(__name__)
 
 DISCOVERY_MODEL = "claude-opus-4-8"
 MAX_WEB_SEARCHES = 12
@@ -85,6 +89,26 @@ class DiscoveryError(Exception):
     """Claude replied, but not with a usable suggestion list."""
 
 
+def ping() -> dict:
+    """A near-free Claude round-trip to verify key, network, and model.
+
+    Costs a fraction of a cent — use it to rule out infrastructure before
+    burning money on full scans.
+    """
+    client = anthropic.Anthropic(
+        api_key=anthropic_api_key(), timeout=30.0, max_retries=0
+    )
+    started = time.monotonic()
+    response = client.messages.create(
+        model=DISCOVERY_MODEL,
+        max_tokens=32,
+        messages=[{"role": "user", "content": "Reply with the single word: ok"}],
+    )
+    seconds = round(time.monotonic() - started, 1)
+    logger.info("ping: %s answered in %.1fs", response.model, seconds)
+    return {"ok": True, "model": response.model, "seconds": seconds}
+
+
 def _create_message(client: anthropic.Anthropic, messages: list) -> anthropic.types.Message:
     # Streamed because a web-search turn runs for minutes: a non-streaming
     # request sits idle the whole time and dies on connection timeouts,
@@ -133,24 +157,47 @@ def _run_prompt(prompt: str) -> list[dict]:
         max_retries=1,
     )
     messages: list = [{"role": "user", "content": prompt}]
+    logger.info("scan: starting (%d-char prompt)", len(prompt))
 
+    started = time.monotonic()
     response = _create_message(client, messages)
-    for _ in range(MAX_CONTINUATIONS):
+    logger.info(
+        "scan: turn done in %.0fs, stop_reason=%s",
+        time.monotonic() - started,
+        response.stop_reason,
+    )
+    for continuation in range(MAX_CONTINUATIONS):
         if response.stop_reason != "pause_turn":
             break
         messages = messages + [{"role": "assistant", "content": response.content}]
+        started = time.monotonic()
         response = _create_message(client, messages)
+        logger.info(
+            "scan: continuation %d done in %.0fs, stop_reason=%s",
+            continuation + 1,
+            time.monotonic() - started,
+            response.stop_reason,
+        )
 
     text = "".join(
         block.text for block in response.content if block.type == "text"
     )
-    return _parse_suggestions(text)
+    suggestions = _parse_suggestions(text)
+    logger.info(
+        "scan: parsed %d suggestions from a %d-char reply",
+        len(suggestions),
+        len(text),
+    )
+    return suggestions
 
 
 def _parse_suggestions(text: str) -> list[dict]:
     items = _extract_json_array(text)
     if items is None:
-        raise DiscoveryError("Claude's reply did not contain a suggestion list")
+        raise DiscoveryError(
+            "Claude's reply did not contain a suggestion list "
+            f"(reply starts: {text[:200]!r})"
+        )
     suggestions = []
     for item in items:
         if not isinstance(item, dict):

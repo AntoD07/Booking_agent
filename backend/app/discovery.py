@@ -13,6 +13,7 @@ import logging
 import re
 import time
 import unicodedata
+from typing import Callable
 
 import anthropic
 
@@ -132,62 +133,70 @@ def _create_message(client: anthropic.Anthropic, messages: list) -> anthropic.ty
         return stream.get_final_message()
 
 
-def run_discovery(artist_names: list[str]) -> list[dict]:
+Progress = Callable[[str], None]
+
+
+def run_discovery(
+    artist_names: list[str], progress: Progress | None = None
+) -> list[dict]:
     if len(artist_names) > 1:
         joined = ", ".join(artist_names[:-1]) + " and " + artist_names[-1]
     else:
         joined = artist_names[0]
-    return _run_prompt(_PROMPT.format(artists=joined))
+    return _run_prompt(_PROMPT.format(artists=joined), progress)
 
 
 def run_general_discovery(
-    region: str, event_type: VenueType | None, period: str | None
+    region: str,
+    event_type: VenueType | None,
+    period: str | None,
+    progress: Progress | None = None,
 ) -> list[dict]:
     what = _TYPE_PHRASES.get(event_type, "festivals, jazz clubs, and concert venues")
     period_clause = f" during {period}" if period else ""
     return _run_prompt(
-        _GENERAL_PROMPT.format(what=what, region=region, period_clause=period_clause)
+        _GENERAL_PROMPT.format(what=what, region=region, period_clause=period_clause),
+        progress,
     )
 
 
-def _run_prompt(prompt: str) -> list[dict]:
+def _run_prompt(prompt: str, progress: Progress | None = None) -> list[dict]:
+    def note(message: str) -> None:
+        logger.info("scan: %s", message)
+        if progress is not None:
+            progress(message)
+
     client = anthropic.Anthropic(
         api_key=anthropic_api_key(),
         timeout=REQUEST_TIMEOUT_SECONDS,
         max_retries=1,
     )
     messages: list = [{"role": "user", "content": prompt}]
-    logger.info("scan: starting (%d-char prompt)", len(prompt))
+    scan_started = time.monotonic()
+    note("Contacting Claude…")
 
-    started = time.monotonic()
     response = _create_message(client, messages)
-    logger.info(
-        "scan: turn done in %.0fs, stop_reason=%s",
-        time.monotonic() - started,
-        response.stop_reason,
+    note(
+        f"Claude searched for {time.monotonic() - scan_started:.0f}s "
+        f"(stop reason: {response.stop_reason})"
     )
     for continuation in range(MAX_CONTINUATIONS):
         if response.stop_reason != "pause_turn":
             break
         messages = messages + [{"role": "assistant", "content": response.content}]
-        started = time.monotonic()
+        note(f"Search continues (round {continuation + 2})…")
         response = _create_message(client, messages)
-        logger.info(
-            "scan: continuation %d done in %.0fs, stop_reason=%s",
-            continuation + 1,
-            time.monotonic() - started,
-            response.stop_reason,
+        note(
+            f"Round {continuation + 2} done after "
+            f"{time.monotonic() - scan_started:.0f}s total "
+            f"(stop reason: {response.stop_reason})"
         )
 
     text = "".join(
         block.text for block in response.content if block.type == "text"
     )
     suggestions = _parse_suggestions(text)
-    logger.info(
-        "scan: parsed %d suggestions from a %d-char reply",
-        len(suggestions),
-        len(text),
-    )
+    note(f"Parsed {len(suggestions)} suggestions from Claude's reply")
     return suggestions
 
 

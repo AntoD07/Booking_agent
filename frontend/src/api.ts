@@ -123,6 +123,8 @@ export interface ScanJob {
   job_id: string;
   status: "running" | "done" | "failed";
   error: string | null;
+  /** Latest progress step while the scan runs. */
+  note: string | null;
   suggestions: Suggestion[] | null;
 }
 

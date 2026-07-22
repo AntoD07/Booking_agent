@@ -188,6 +188,8 @@ class ScanJobOut(BaseModel):
     job_id: str
     status: str  # running | done | failed
     error: str | None = None
+    # Latest progress step, shown live while the scan runs.
+    note: str | None = None
     suggestions: list[SuggestionOut] | None = None
 
 

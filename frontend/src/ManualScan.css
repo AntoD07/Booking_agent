@@ -284,6 +284,11 @@
   font-style: italic;
 }
 
+.scan-note {
+  font-size: 0.85rem;
+  font-style: normal;
+}
+
 .scan-error {
   margin: 1.25rem 0 0;
   color: var(--accent);

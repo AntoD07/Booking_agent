@@ -151,6 +151,7 @@ interface BoardProps {
   onSignOut: () => void;
   onAddVenue: () => void;
   onOpenScan: () => void;
+  onOpenResearch: () => void;
   onOpenVenue: (venue: Venue) => void;
   onStatusChange: (venue: Venue, status: VenueStatus) => void;
 }
@@ -161,6 +162,7 @@ export default function Board({
   onSignOut,
   onAddVenue,
   onOpenScan,
+  onOpenResearch,
   onOpenVenue,
   onStatusChange,
 }: BoardProps) {
@@ -194,6 +196,9 @@ export default function Board({
           </button>
           <button className="board-scan" onClick={onOpenScan}>
             Manual scan
+          </button>
+          <button className="board-scan" onClick={onOpenResearch}>
+            Search &amp; fill
           </button>
           <button className="board-signout" onClick={onSignOut}>
             Sign out

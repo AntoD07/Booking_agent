@@ -1,0 +1,231 @@
+/* Full-screen on mobile; centered panel over a dim backdrop on larger screens. */
+.research-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: rgba(35, 32, 26, 0.35);
+  display: flex;
+}
+
+.research-dialog {
+  background: var(--paper);
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+}
+
+.research-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem 1.25rem 1rem;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  background: var(--paper);
+}
+
+.research-overline {
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.25rem;
+}
+
+.research-title {
+  font-size: 1.7rem;
+  line-height: 1.15;
+}
+
+.research-close {
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  white-space: nowrap;
+}
+
+.research-close:hover {
+  color: var(--accent);
+}
+
+.research-body {
+  padding: 1rem 1.25rem 2.5rem;
+}
+
+.research-status {
+  color: var(--ink-soft);
+  margin: 0.5rem 0 0;
+}
+
+.research-note {
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.research-error {
+  color: var(--accent);
+  margin: 0.5rem 0 0;
+}
+
+.research-summary {
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  margin: 0.5rem 0 0;
+}
+
+.research-empty {
+  color: var(--ink-soft);
+  margin: 1rem 0 0;
+}
+
+.research-venue {
+  margin-top: 1.5rem;
+}
+
+.research-venue-name {
+  font-size: 1.15rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.research-findings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.research-finding {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+
+.research-finding:last-child {
+  border-bottom: none;
+}
+
+.research-field {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  min-width: 8.5rem;
+}
+
+.research-value {
+  flex: 1;
+  min-width: 12rem;
+  overflow-wrap: anywhere;
+}
+
+.research-old {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+}
+
+/* A found value not applied because the field was human-entered. */
+.research-kept {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0.05rem 0.4rem;
+  cursor: help;
+  white-space: nowrap;
+}
+
+.research-source {
+  font-size: 0.8rem;
+  color: var(--accent);
+}
+
+.research-legend {
+  margin: 1.5rem 0 0;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.research-legend .conf-dot {
+  margin-left: 0.9rem;
+}
+
+.research-legend .conf-dot:first-child {
+  margin-left: 0;
+}
+
+.research-past {
+  margin-top: 2.5rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+
+.research-past-title {
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.research-past-run {
+  border-bottom: 1px solid var(--line);
+  padding: 0.35rem 0;
+}
+
+.research-past-toggle {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0.35rem 0;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.research-past-toggle:hover .research-past-date {
+  color: var(--accent);
+}
+
+.research-past-date {
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.research-past-summary {
+  flex: 1;
+}
+
+/* Wider screens: a centered panel instead of a full sheet. */
+@media (min-width: 640px) {
+  .research-backdrop {
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  .research-dialog {
+    width: min(42rem, 100%);
+    height: auto;
+    max-height: calc(100vh - 4rem);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+}

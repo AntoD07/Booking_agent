@@ -15,3 +15,5 @@ services:
         sync: false
       - key: SECRET_KEY
         generateValue: true
+      - key: ANTHROPIC_API_KEY
+        sync: false

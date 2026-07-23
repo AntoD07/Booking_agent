@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.routers import artists, auth, discovery, venues
+from app.routers import artists, auth, discovery, research, venues
 
 # Without a handler, app loggers below WARNING are silently dropped —
 # uvicorn only configures its own loggers, not ours.
@@ -17,6 +17,7 @@ app.include_router(auth.router)
 app.include_router(venues.router)
 app.include_router(artists.router)
 app.include_router(discovery.router)
+app.include_router(research.router)
 
 
 @app.get("/api/health")

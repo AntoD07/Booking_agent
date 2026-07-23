@@ -96,6 +96,34 @@ export interface Suggestion {
   matched_venue_name: string | null;
 }
 
+/** A fact Claude found for a venue during a Search & fill run. */
+export interface ResearchFinding {
+  id: number;
+  venue_id: number | null;
+  venue_name: string;
+  field: string;
+  old_value: string | null;
+  new_value: string;
+  confidence: string;
+  source: string | null;
+  /** False when a human-entered value was kept instead. */
+  applied: boolean;
+}
+
+export interface ResearchRun {
+  id: number;
+  status: "running" | "completed" | "failed";
+  started_at: string;
+  finished_at: string | null;
+  venues_checked: number;
+  fields_filled: number;
+  /** Latest progress step, shown live while the run is going. */
+  note: string | null;
+  summary: string | null;
+  error: string | null;
+  findings: ResearchFinding[];
+}
+
 export interface Venue {
   id: number;
   name: string;

@@ -39,9 +39,10 @@ BATCH_SIZE = 5
 # walk through the whole pipeline instead of re-checking the same cards.
 RESEARCH_COOLDOWN = timedelta(days=14)
 RUN_MAX_SECONDS = 600.0
-# A run stuck in "running" longer than this (e.g. after a server restart)
-# is treated as failed so the button doesn't stay locked forever.
-STALE_RUN_AFTER = timedelta(minutes=30)
+# A run stuck in "running" longer than this is treated as failed so the button
+# doesn't stay locked. A real run cannot exceed RUN_MAX_SECONDS (10 min), so
+# 15 min means genuinely dead — not merely slow.
+STALE_RUN_AFTER = timedelta(minutes=15)
 
 # The season we are booking. Dates for earlier editions must never populate a
 # venue's deadline/event-date fields — they belong in a reference note. Bump

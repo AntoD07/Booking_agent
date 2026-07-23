@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -11,7 +12,16 @@ from app.routers import artists, auth, discovery, research, venues
 # uvicorn only configures its own loggers, not ours.
 logging.basicConfig(level=logging.INFO, format="%(levelname)s [%(name)s] %(message)s")
 
-app = FastAPI(title="Gig Pipeline")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # A restart kills any in-flight research job; make sure it doesn't stay
+    # "running" and lock the Search & fill button.
+    research.fail_running_runs()
+    yield
+
+
+app = FastAPI(title="Gig Pipeline", lifespan=lifespan)
 
 app.include_router(auth.router)
 app.include_router(venues.router)

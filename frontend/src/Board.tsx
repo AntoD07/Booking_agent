@@ -203,9 +203,14 @@ export default function Board({
     setDragOverStatus(null);
   };
 
-  const dropOn = (status: VenueStatus) => {
-    const venue = draggingVenue;
+  // The dragged venue id comes from the drop event's dataTransfer, not React
+  // state, so a drop always resolves the right card regardless of render timing.
+  const dropOn = (status: VenueStatus, draggedId: string) => {
     endDrag();
+    const id = Number(draggedId);
+    const venue = Number.isNaN(id)
+      ? null
+      : (venues.find((candidate) => candidate.id === id) ?? null);
     if (venue && venue.status !== status) {
       onStatusChange(venue, status);
     }
@@ -330,14 +335,19 @@ export default function Board({
               className={`board-column${isTarget ? " board-column--drag-over" : ""}`}
               key={status}
               onDragOver={(event) => {
-                if (draggingVenue) {
-                  event.preventDefault(); // allow the drop
+                // Always allow the drop. Gating preventDefault on React state
+                // is unreliable: if the state isn't current when the native
+                // dragover fires, the browser rejects the drop and the card
+                // never moves. The dragged id lives in dataTransfer instead.
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+                if (dragOverStatus !== status) {
                   setDragOverStatus(status);
                 }
               }}
               onDrop={(event) => {
                 event.preventDefault();
-                dropOn(status);
+                dropOn(status, event.dataTransfer.getData("text/plain"));
               }}
             >
               <h2 className="column-title">

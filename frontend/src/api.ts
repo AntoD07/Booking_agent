@@ -1,5 +1,6 @@
 import type {
   Artist,
+  ResearchRun,
   Suggestion,
   Venue,
   VenueInput,
@@ -150,6 +151,20 @@ export function acceptSuggestion(
       source,
     }),
   });
+}
+
+/** Start a Search & fill run (or get the one already running); poll after. */
+export function startResearch(): Promise<ResearchRun> {
+  return request("/api/research/runs", { method: "POST" });
+}
+
+export function fetchResearchRun(id: number): Promise<ResearchRun> {
+  return request(`/api/research/runs/${id}`);
+}
+
+/** Recent Search & fill runs, newest first — past findings stay reviewable. */
+export function fetchResearchRuns(): Promise<ResearchRun[]> {
+  return request("/api/research/runs");
 }
 
 export function removeAppearance(

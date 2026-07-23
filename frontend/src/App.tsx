@@ -9,6 +9,7 @@ import {
 import Board from "./Board";
 import Login from "./Login";
 import ManualScan from "./ManualScan";
+import ResearchDialog from "./ResearchDialog";
 import VenueSheet from "./VenueSheet";
 import type { Venue, VenueStatus } from "./types";
 
@@ -22,6 +23,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   // Venue being edited, "new" for the add-venue form, null when the board is shown.
   const [active, setActive] = useState<Venue | "new" | null>(null);
+  // The Search & fill dialog: starts a research run when opened.
+  const [researching, setResearching] = useState(false);
 
   const handleError = useCallback((err: unknown) => {
     if (err instanceof UnauthorizedError) {
@@ -85,6 +88,7 @@ export default function App() {
         }}
         onAddVenue={() => setActive("new")}
         onOpenScan={() => setView("scan")}
+        onOpenResearch={() => setResearching(true)}
         onOpenVenue={(venue) => setActive(venue)}
         onStatusChange={async (venue: Venue, status: VenueStatus) => {
           try {
@@ -95,6 +99,17 @@ export default function App() {
           }
         }}
       />
+      {researching && (
+        <ResearchDialog
+          onClose={() => {
+            setResearching(false);
+            // The run may still be writing venue fields in the background.
+            loadVenues();
+          }}
+          onUnauthorized={() => setSession("anonymous")}
+          onVenuesChanged={loadVenues}
+        />
+      )}
       {active !== null && (
         <VenueSheet
           venue={active === "new" ? null : active}

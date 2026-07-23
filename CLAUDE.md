@@ -27,7 +27,7 @@ Core jobs, in priority order:
    close applications Sept–Jan for the following summer).
 
 Later phases (do NOT build until asked): scheduled scans of artist gig feeds,
-enrichment via web search, multi-user.
+multi-user.
 
 ## Stack
 

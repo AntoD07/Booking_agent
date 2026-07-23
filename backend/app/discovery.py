@@ -28,6 +28,9 @@ MAX_WEB_SEARCHES = 12
 # scan — a healthy scan sends events continuously, so a long gap means the
 # request is stuck and should fail rather than zombie.
 REQUEST_TIMEOUT_SECONDS = 300.0
+# Hard wall-clock cap for a whole scan; past this the stream is torn down
+# and the job fails with a clear message instead of hanging.
+SCAN_MAX_SECONDS = 480.0
 # Server-side tool loops can stop with stop_reason "pause_turn"; the request
 # must be re-sent to let the search continue. Bounded to avoid infinite loops.
 MAX_CONTINUATIONS = 5
@@ -110,10 +113,18 @@ def ping() -> dict:
     return {"ok": True, "model": response.model, "seconds": seconds}
 
 
-def _create_message(client: anthropic.Anthropic, messages: list) -> anthropic.types.Message:
+def _create_message(
+    client: anthropic.Anthropic,
+    messages: list,
+    note: "Progress | None" = None,
+    deadline: float | None = None,
+) -> anthropic.types.Message:
     # Streamed because a web-search turn runs for minutes: a non-streaming
     # request sits idle the whole time and dies on connection timeouts,
     # while a stream keeps the connection alive until the turn completes.
+    # Iterating the events lets us surface live progress and enforce the
+    # scan-wide deadline mid-turn.
+    searches = 0
     with client.messages.stream(
         model=DISCOVERY_MODEL,
         max_tokens=8000,
@@ -130,6 +141,22 @@ def _create_message(client: anthropic.Anthropic, messages: list) -> anthropic.ty
         ],
         messages=messages,
     ) as stream:
+        for event in stream:
+            if deadline is not None and time.monotonic() > deadline:
+                raise DiscoveryError(
+                    f"the scan exceeded {int(SCAN_MAX_SECONDS // 60)} minutes "
+                    "and was stopped"
+                )
+            if note is None or event.type != "content_block_start":
+                continue
+            block_type = getattr(event.content_block, "type", None)
+            if block_type == "server_tool_use":
+                searches += 1
+                note(f"Web search {searches} running…")
+            elif block_type == "thinking":
+                note("Claude is thinking…")
+            elif block_type == "text":
+                note("Claude is writing up its findings…")
         return stream.get_final_message()
 
 
@@ -161,10 +188,14 @@ def run_general_discovery(
 
 
 def _run_prompt(prompt: str, progress: Progress | None = None) -> list[dict]:
+    scan_started = time.monotonic()
+    deadline = scan_started + SCAN_MAX_SECONDS
+
     def note(message: str) -> None:
-        logger.info("scan: %s", message)
+        stamped = f"{message} ({time.monotonic() - scan_started:.0f}s elapsed)"
+        logger.info("scan: %s", stamped)
         if progress is not None:
-            progress(message)
+            progress(stamped)
 
     client = anthropic.Anthropic(
         api_key=anthropic_api_key(),
@@ -172,23 +203,18 @@ def _run_prompt(prompt: str, progress: Progress | None = None) -> list[dict]:
         max_retries=1,
     )
     messages: list = [{"role": "user", "content": prompt}]
-    scan_started = time.monotonic()
     note("Contacting Claude…")
 
-    response = _create_message(client, messages)
-    note(
-        f"Claude searched for {time.monotonic() - scan_started:.0f}s "
-        f"(stop reason: {response.stop_reason})"
-    )
+    response = _create_message(client, messages, note, deadline)
+    note(f"First round finished (stop reason: {response.stop_reason})")
     for continuation in range(MAX_CONTINUATIONS):
         if response.stop_reason != "pause_turn":
             break
         messages = messages + [{"role": "assistant", "content": response.content}]
         note(f"Search continues (round {continuation + 2})…")
-        response = _create_message(client, messages)
+        response = _create_message(client, messages, note, deadline)
         note(
-            f"Round {continuation + 2} done after "
-            f"{time.monotonic() - scan_started:.0f}s total "
+            f"Round {continuation + 2} finished "
             f"(stop reason: {response.stop_reason})"
         )
 

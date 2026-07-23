@@ -13,6 +13,7 @@ import logging
 import re
 import time
 import unicodedata
+from datetime import date
 from typing import Callable
 
 import anthropic
@@ -81,6 +82,45 @@ Return 6 to 12 suggestions. End your reply with ONLY a JSON array inside a
 
 Do not invent venues; only include places you found evidence for.
 """
+
+_ENRICH_PROMPT = """\
+We are a gypsy jazz (jazz manouche) quartet preparing to pitch the venue
+below for our 2027 season. Research it with web search and fill in our
+booking card.
+
+Venue: {name}{place_clause}{website_clause}
+
+Find these fields:
+- "region": the administrative region it sits in (e.g. "Occitanie")
+- "website": the official website URL
+- "booking_contact": name and/or role of whoever books the programme
+- "contact_email": the booking or general contact email address
+- "application_method": how artists get booked or apply, one short sentence
+- "application_url": the URL of the application or contact page, if any
+- "application_deadline": the application deadline as YYYY-MM-DD, if one exists
+- "event_dates": when the festival or season takes place, as free text
+- "research_notes": 2-3 sentences on their programme and how well a gypsy
+  jazz quartet fits
+
+End your reply with ONLY a JSON object inside a ```json code fence. Map
+each key above to null, or to {{"value": ..., "confidence": "high" |
+"medium" | "low"}} — confidence is how sure you are the information is
+current and correct. Use null when you found nothing reliable. Never
+guess or invent contact details.
+"""
+
+# Venue fields enrichment may fill (string-valued; the deadline is a date).
+ENRICH_STRING_FIELDS = (
+    "region",
+    "website",
+    "booking_contact",
+    "contact_email",
+    "application_method",
+    "application_url",
+    "event_dates",
+    "research_notes",
+)
+_CONFIDENCE_LEVELS = {"high", "medium", "low"}
 
 _TYPE_PHRASES = {
     VenueType.festival: "festivals",
@@ -198,12 +238,18 @@ def run_general_discovery(
     )
 
 
-def _run_prompt(prompt: str, progress: Progress | None = None) -> list[dict]:
-    scan_started = time.monotonic()
-    deadline = scan_started + SCAN_MAX_SECONDS
+def _stream_turns(
+    prompt: str, progress: Progress | None = None
+) -> tuple[str, str | None]:
+    """Run one prompt to completion (incl. pause_turn continuations).
+
+    Returns the concatenated reply text and the final stop reason.
+    """
+    started = time.monotonic()
+    deadline = started + SCAN_MAX_SECONDS
 
     def note(message: str) -> None:
-        stamped = f"{message} ({time.monotonic() - scan_started:.0f}s elapsed)"
+        stamped = f"{message} ({time.monotonic() - started:.0f}s elapsed)"
         logger.info("scan: %s", stamped)
         if progress is not None:
             progress(stamped)
@@ -232,17 +278,84 @@ def _run_prompt(prompt: str, progress: Progress | None = None) -> list[dict]:
     text = "".join(
         block.text for block in response.content if block.type == "text"
     )
+    return text, response.stop_reason
+
+
+def _run_prompt(prompt: str, progress: Progress | None = None) -> list[dict]:
+    text, stop_reason = _stream_turns(prompt, progress)
     try:
         suggestions = _parse_suggestions(text)
     except DiscoveryError:
-        if response.stop_reason == "max_tokens":
+        if stop_reason == "max_tokens":
             raise DiscoveryError(
                 "Claude ran out of room before writing the suggestion list "
                 "— try again with fewer artists or a narrower search"
             )
         raise
-    note(f"Parsed {len(suggestions)} suggestions from Claude's reply")
+    if progress is not None:
+        progress(f"Parsed {len(suggestions)} suggestions from Claude's reply")
     return suggestions
+
+
+def run_enrichment(
+    name: str,
+    city: str | None = None,
+    country: str | None = None,
+    website: str | None = None,
+    progress: Progress | None = None,
+) -> dict[str, tuple]:
+    """Research one venue and return {field: (value, confidence)}."""
+    place = ", ".join(part for part in (city, country) if part)
+    prompt = _ENRICH_PROMPT.format(
+        name=name,
+        place_clause=f" in {place}" if place else "",
+        website_clause=f" — website: {website}" if website else "",
+    )
+    text, _ = _stream_turns(prompt, progress)
+    return _parse_enrichment(text)
+
+
+def _parse_enrichment(text: str) -> dict[str, tuple]:
+    data = _extract_json_object(text)
+    if data is None:
+        raise DiscoveryError(
+            "Claude's reply did not contain a research card "
+            f"(reply starts: {text[:200]!r})"
+        )
+    found: dict[str, tuple] = {}
+    for field in ENRICH_STRING_FIELDS + ("application_deadline",):
+        entry = data.get(field)
+        if not isinstance(entry, dict):
+            continue
+        value = _clean(entry.get("value"))
+        if value is None:
+            continue
+        confidence = entry.get("confidence")
+        if confidence not in _CONFIDENCE_LEVELS:
+            confidence = "low"
+        if field == "application_deadline":
+            try:
+                value = date.fromisoformat(value)
+            except ValueError:
+                continue
+        found[field] = (value, confidence)
+    return found
+
+
+def _extract_json_object(text: str) -> dict | None:
+    fences = re.findall(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+    candidates = list(reversed(fences))
+    start, end = text.find("{"), text.rfind("}")
+    if start != -1 and end > start:
+        candidates.append(text[start : end + 1])
+    for candidate in candidates:
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+    return None
 
 
 def _parse_suggestions(text: str) -> list[dict]:

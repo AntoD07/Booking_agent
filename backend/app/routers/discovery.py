@@ -222,15 +222,64 @@ def scan_job(job_id: str) -> ScanJobOut:
     )
 
 
+def _run_enrichment_job(venue_id: int) -> None:
+    """Research an accepted venue and fill its still-empty card fields.
+
+    Runs in the background after accept. Human edits win: only fields
+    that are empty at write time get filled, each stamped with Claude's
+    confidence so the sheet can show the research dots.
+    """
+    db = SessionLocal()
+    try:
+        venue = db.get(Venue, venue_id)
+        if venue is None:
+            return
+        logger.info("enrichment: researching venue %s (%s)", venue_id, venue.name)
+        try:
+            found = discovery.run_enrichment(
+                venue.name, venue.city, venue.country, venue.website
+            )
+        except Exception:  # noqa: BLE001 — enrichment must never break accept
+            logger.exception("enrichment for venue %s failed", venue_id)
+            return
+        db.refresh(venue)  # pick up human edits made while researching
+        confidence = dict(venue.field_confidence or {})
+        filled = []
+        for field, (value, level) in found.items():
+            if field == "research_notes":
+                addition = f"Claude research:\n{value}"
+                venue.research_notes = (
+                    f"{venue.research_notes}\n\n{addition}"
+                    if venue.research_notes
+                    else addition
+                )
+            elif getattr(venue, field) in (None, ""):
+                setattr(venue, field, value)
+            else:
+                continue  # already filled by a human or the suggestion
+            confidence[field] = level
+            filled.append(field)
+        venue.field_confidence = confidence
+        db.commit()
+        logger.info(
+            "enrichment: venue %s filled: %s", venue_id, ", ".join(filled) or "nothing"
+        )
+    finally:
+        db.close()
+
+
 @router.post("/accept", response_model=VenueOut, status_code=201)
 def accept_suggestion(
-    payload: SuggestionAccept, db: Session = Depends(get_db)
+    payload: SuggestionAccept,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
 ) -> Venue:
     """Turn a reviewed suggestion into a pipeline venue.
 
     The venue enters as Discovered. The source is the caller-provided scan
     label when given, otherwise the artist hook; a reference artist, when
-    present, is linked (created by name if needed).
+    present, is linked (created by name if needed). A background research
+    task then fills the empty card fields with confidence indicators.
     """
     if payload.source:
         source = payload.source.strip()
@@ -268,4 +317,6 @@ def accept_suggestion(
         db.add(VenueArtist(venue_id=venue.id, artist_id=artist.id))
     db.commit()
     db.refresh(venue)
+    if anthropic_api_key():
+        background_tasks.add_task(_run_enrichment_job, venue.id)
     return venue

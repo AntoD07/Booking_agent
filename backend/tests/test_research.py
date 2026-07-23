@@ -4,7 +4,7 @@ from sqlalchemy import select
 
 from app import enrichment
 from app.db import SessionLocal
-from app.models import ResearchFinding, ResearchRun, Venue, VenueType
+from app.models import ResearchFinding, ResearchRun, Venue, VenueStatus, VenueType
 
 
 def _make_venue(db, band_id, **overrides):
@@ -170,6 +170,136 @@ def test_selection_skips_complete_and_recent_venues(band):
         assert "Needy Fest" in names
         assert "Complete Club" not in names
         assert "Recently Checked" not in names
+
+
+def _apply(db, band_id, venue, findings):
+    run = ResearchRun(band_id=band_id)
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+    enrichment.apply_findings(db, run, [venue], findings)
+    db.commit()
+    return run
+
+
+def test_past_edition_deadline_becomes_note_not_field(band):
+    with SessionLocal() as db:
+        venue = _make_venue(db, band.id, name="Django à Liberchies")
+        _apply(
+            db,
+            band.id,
+            venue,
+            [
+                {
+                    "venue_id": venue.id,
+                    "field": "application_deadline",
+                    "value": "2026-03",  # a past edition
+                    "confidence": "medium",
+                    "source": None,
+                }
+            ],
+        )
+        refreshed = db.get(Venue, venue.id)
+        # The past deadline must NOT land in the date field...
+        assert refreshed.application_deadline is None
+        # ...it is preserved as a reference note instead.
+        assert "2026-03" in (refreshed.research_notes or "")
+        stored = db.scalars(select(ResearchFinding)).all()
+        assert [f.field for f in stored] == ["note"]
+
+
+def test_past_edition_event_dates_become_note(band):
+    with SessionLocal() as db:
+        venue = _make_venue(db, band.id, name="Jazz sous les Pommiers")
+        _apply(
+            db,
+            band.id,
+            venue,
+            [
+                {
+                    "venue_id": venue.id,
+                    "field": "event_dates",
+                    "value": "3-18 July 2026",
+                    "confidence": "medium",
+                    "source": None,
+                }
+            ],
+        )
+        refreshed = db.get(Venue, venue.id)
+        assert refreshed.event_dates is None
+        assert "3-18 July 2026" in (refreshed.research_notes or "")
+
+
+def test_future_dates_are_kept(band):
+    with SessionLocal() as db:
+        venue = _make_venue(db, band.id, name="Future Fest")
+        _apply(
+            db,
+            band.id,
+            venue,
+            [
+                {
+                    "venue_id": venue.id,
+                    "field": "event_dates",
+                    "value": "24-27 June 2027",
+                    "confidence": "high",
+                    "source": None,
+                }
+            ],
+        )
+        refreshed = db.get(Venue, venue.id)
+        assert refreshed.event_dates == "24-27 June 2027"
+
+
+def test_clear_stale_dates_targets_only_claude_filled(auth_client, band):
+    from datetime import date
+
+    with SessionLocal() as db:
+        stale = _make_venue(
+            db,
+            band.id,
+            name="Stale Fest",
+            status=VenueStatus.researched,
+            application_deadline=date(2026, 3, 1),
+            event_dates="3-18 July 2026",
+            field_confidence={
+                "application_deadline": "medium",
+                "event_dates": "medium",
+            },
+        )
+        manual = _make_venue(
+            db,
+            band.id,
+            name="Manual Fest",
+            application_deadline=date(2026, 4, 1),  # no marker → human-entered
+        )
+        future = _make_venue(
+            db,
+            band.id,
+            name="Future Fest",
+            application_deadline=date(2027, 1, 1),
+            field_confidence={"application_deadline": "high"},
+        )
+        ids = {"stale": stale.id, "manual": manual.id, "future": future.id}
+
+    response = auth_client.post("/api/research/clear-stale-dates")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["cleared"] == 1
+    assert body["venues"] == ["Stale Fest"]
+
+    with SessionLocal() as db:
+        s = db.get(Venue, ids["stale"])
+        assert s.application_deadline is None
+        assert s.event_dates is None
+        assert s.field_confidence is None
+        assert s.status == VenueStatus.discovered
+
+        m = db.get(Venue, ids["manual"])
+        assert m.application_deadline == date(2026, 4, 1)  # untouched
+
+        f = db.get(Venue, ids["future"])
+        assert f.application_deadline == date(2027, 1, 1)  # untouched
 
 
 def test_runs_list_returns_findings(auth_client, band, monkeypatch):

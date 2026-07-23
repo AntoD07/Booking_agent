@@ -213,6 +213,67 @@
   flex: 1;
 }
 
+.research-cleanup {
+  margin-top: 2rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+
+.research-cleanup-note {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin: 0.35rem 0 0.75rem;
+}
+
+.research-cleanup-button {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+}
+
+.research-cleanup-button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.research-cleanup-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.research-cleanup-go {
+  background: var(--accent);
+  color: var(--paper-raised);
+  border: none;
+  border-radius: 4px;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+}
+
+.research-cleanup-cancel {
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.research-cleanup-cancel:hover {
+  color: var(--accent);
+}
+
+.research-cleanup-result {
+  font-size: 0.85rem;
+  margin: 0.75rem 0 0;
+}
+
 /* Wider screens: a centered panel instead of a full sheet. */
 @media (min-width: 640px) {
   .research-backdrop {

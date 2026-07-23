@@ -230,6 +230,13 @@ class ResearchStarted(BaseModel):
     run_id: int
 
 
+class StaleDatesReset(BaseModel):
+    """Outcome of clearing Claude-filled dates from a past edition."""
+
+    cleared: int
+    venues: list[str]
+
+
 class ResearchRunOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

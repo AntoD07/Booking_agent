@@ -32,7 +32,7 @@ MAX_WEB_SEARCHES = 6
 REQUEST_TIMEOUT_SECONDS = 300.0
 # Hard wall-clock cap for a whole scan; past this the stream is torn down
 # and the job fails with a clear message instead of hanging.
-SCAN_MAX_SECONDS = 480.0
+SCAN_MAX_SECONDS = 600.0
 # Server-side tool loops can stop with stop_reason "pause_turn"; the request
 # must be re-sent to let the search continue. Bounded to avoid infinite loops.
 MAX_CONTINUATIONS = 5
@@ -138,7 +138,11 @@ def _create_message(
         output_config={"effort": "medium"},
         tools=[
             {
-                "type": "web_search_20260209",
+                # The basic search variant on purpose: the _20260209 version
+                # runs server-side filtering programs around every search
+                # (observed: 19+ tool steps for a 6-search budget, ~8-minute
+                # turns). Plain searches keep a scan down to a few minutes.
+                "type": "web_search_20250305",
                 "name": "web_search",
                 "max_uses": MAX_WEB_SEARCHES,
             }

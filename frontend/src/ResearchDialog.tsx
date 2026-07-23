@@ -1,16 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  UnauthorizedError,
-  fetchResearchRun,
+  clearStaleDates,
   fetchResearchRuns,
-  startResearch,
+  type StaleDatesReset,
 } from "./api";
 import type { ResearchFinding, ResearchRun } from "./types";
 import "./ResearchDialog.css";
-
-const POLL_INTERVAL_MS = 4000;
-// Server-side runs are capped at ten minutes; stop asking well after that.
-const MAX_WAIT_MS = 12 * 60 * 1000;
 
 const FIELD_LABELS: Record<string, string> = {
   website: "Website",
@@ -23,7 +18,7 @@ const FIELD_LABELS: Record<string, string> = {
   note: "Note",
 };
 
-/** Deadlines travel as "YYYY-MM"; show "January 2027" like the board does. */
+/** Deadlines travel as "YYYY-MM"; show just the month — the season is 2027. */
 function formatValue(finding: ResearchFinding): string {
   if (
     finding.field === "application_deadline" &&
@@ -31,7 +26,6 @@ function formatValue(finding: ResearchFinding): string {
   ) {
     return new Date(`${finding.new_value}-01`).toLocaleDateString(undefined, {
       month: "long",
-      year: "numeric",
     });
   }
   return finding.new_value;
@@ -122,85 +116,61 @@ function FindingsList({ findings }: { findings: ResearchFinding[] }) {
 }
 
 interface ResearchDialogProps {
+  /** The run being followed (App owns the polling); null while it starts. */
+  run: ResearchRun | null;
+  error: string | null;
   onClose: () => void;
-  onUnauthorized: () => void;
-  /** The run writes venue fields; the board reloads through this. */
+  /** The run and the cleanup both write venue fields; the board reloads here. */
   onVenuesChanged: () => void;
 }
 
 export default function ResearchDialog({
+  run,
+  error,
   onClose,
-  onUnauthorized,
   onVenuesChanged,
 }: ResearchDialogProps) {
-  const [run, setRun] = useState<ResearchRun | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [pastRuns, setPastRuns] = useState<ResearchRun[]>([]);
   const [openPastId, setOpenPastId] = useState<number | null>(null);
-  // The board must reload at most once per completed run.
-  const notified = useRef(false);
+  const [cleanup, setCleanup] = useState<"idle" | "confirm" | "working">("idle");
+  const [cleanupResult, setCleanupResult] = useState<StaleDatesReset | null>(
+    null,
+  );
+  const [cleanupError, setCleanupError] = useState<string | null>(null);
 
+  const running = run !== null && run.status === "running";
+
+  // Refresh the "Earlier searches" list on open and whenever the current run
+  // reaches a terminal state (so the just-finished run drops into history).
   useEffect(() => {
     let cancelled = false;
-
-    const finish = async (finalRun: ResearchRun) => {
-      if (!notified.current && finalRun.fields_filled > 0) {
-        notified.current = true;
-        onVenuesChanged();
-      }
-      try {
-        const runs = await fetchResearchRuns();
-        if (!cancelled) {
-          setPastRuns(runs.filter((r) => r.id !== finalRun.id));
-        }
-      } catch {
-        // Past runs are a convenience; the current result already shows.
-      }
-    };
-
-    const poll = async () => {
-      try {
-        let current = await startResearch();
-        if (cancelled) return;
-        setRun(current);
-        const startedAt = Date.now();
-        while (current.status === "running") {
-          await new Promise((resolve) =>
-            setTimeout(resolve, POLL_INTERVAL_MS),
-          );
-          if (cancelled) return;
-          current = await fetchResearchRun(current.id);
-          if (cancelled) return;
-          setRun(current);
-          if (Date.now() - startedAt > MAX_WAIT_MS) {
-            setError(
-              "The search is taking unusually long. Close this box and check back in a few minutes.",
-            );
-            return;
-          }
-        }
-        await finish(current);
-      } catch (err) {
-        if (cancelled) return;
-        if (err instanceof UnauthorizedError) {
-          onUnauthorized();
-        } else {
-          setError(
-            err instanceof Error ? err.message : "Something went wrong",
-          );
-        }
-      }
-    };
-
-    poll();
+    fetchResearchRuns()
+      .then((runs) => {
+        if (!cancelled) setPastRuns(runs.filter((r) => r.id !== run?.id));
+      })
+      .catch(() => {
+        // Past runs are a convenience; the current result still shows.
+      });
     return () => {
       cancelled = true;
     };
-    // Runs once: the dialog exists to drive exactly one research run.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [run?.id, run?.status]);
 
-  const running = run !== null && run.status === "running";
+  const runCleanup = async () => {
+    setCleanup("working");
+    setCleanupError(null);
+    try {
+      const result = await clearStaleDates();
+      setCleanupResult(result);
+      setCleanup("idle");
+      if (result.cleared > 0) onVenuesChanged();
+    } catch (err) {
+      setCleanupError(
+        err instanceof Error ? err.message : "Something went wrong",
+      );
+      setCleanup("idle");
+    }
+  };
 
   return (
     <div
@@ -296,6 +266,54 @@ export default function ResearchDialog({
                   )}
                 </div>
               ))}
+            </section>
+          )}
+
+          {!running && (
+            <section className="research-cleanup">
+              <h3 className="research-past-title">Fix past-edition dates</h3>
+              <p className="research-cleanup-note">
+                Clear dates Claude filled from a 2026 (or earlier) edition and
+                send those cards back to Discovered for the 2027 season.
+                Anything you entered by hand is left untouched.
+              </p>
+              {cleanup === "confirm" ? (
+                <div className="research-cleanup-confirm">
+                  <span>Clear all past-edition dates Claude filled?</span>
+                  <button className="research-cleanup-go" onClick={runCleanup}>
+                    Clear
+                  </button>
+                  <button
+                    className="research-cleanup-cancel"
+                    onClick={() => setCleanup("idle")}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  className="research-cleanup-button"
+                  disabled={cleanup === "working"}
+                  onClick={() => {
+                    setCleanupResult(null);
+                    setCleanup("confirm");
+                  }}
+                >
+                  {cleanup === "working"
+                    ? "Clearing…"
+                    : "Clear Claude’s past-edition dates"}
+                </button>
+              )}
+              {cleanupResult && (
+                <p className="research-cleanup-result">
+                  {cleanupResult.cleared === 0
+                    ? "No past-edition dates to clear."
+                    : `Cleared dates on ${cleanupResult.cleared} venue${
+                        cleanupResult.cleared === 1 ? "" : "s"
+                      }, moved to Discovered: ${cleanupResult.venues.join(", ")}.`}
+                </p>
+              )}
+              {cleanupError && <p className="research-error">{cleanupError}</p>}
             </section>
           )}
         </div>

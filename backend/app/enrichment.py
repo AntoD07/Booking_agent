@@ -43,6 +43,11 @@ RUN_MAX_SECONDS = 600.0
 # is treated as failed so the button doesn't stay locked forever.
 STALE_RUN_AFTER = timedelta(minutes=30)
 
+# The season we are booking. Dates for earlier editions must never populate a
+# venue's deadline/event-date fields — they belong in a reference note. Bump
+# this when the booking season rolls over.
+TARGET_SEASON_YEAR = 2027
+
 # Venue fields Claude may fill, in the order they should display.
 RESEARCHABLE_FIELDS = [
     "website",
@@ -65,18 +70,23 @@ pipeline with incomplete or possibly outdated information:
 For each venue, use web search to:
 1. Fill the fields listed in "missing" (official website, booking or
    programming contact email, named programmer, how to apply, application
-   link, event dates).
-2. Check the NEXT edition. If dates or an application deadline for the next
-   edition (2027, or the next upcoming one) are published, report them with
-   confidence "high". If not published yet, derive them from the most
-   recent edition's pattern and report them with confidence "medium".
+   link).
+2. Find the 2027 edition's dates and application deadline. Report
+   "event_dates" and "application_deadline" ONLY when they are for the 2027
+   season (or later), with confidence "high".
+   If the 2027 edition is not published yet, DO NOT report a past edition's
+   dates as "event_dates" or "application_deadline". Instead add a "note"
+   describing the most recent edition (e.g. "2026 ran 3-18 July, applications
+   closed January 2026") so we know the usual window.
 3. Note anything important: festival cancelled or paused, renamed, venue
    closed, named programmer, application window intel.
 
 Rules:
 - Only report emails you actually found published — never construct one.
+- "application_deadline" and "event_dates" must be for 2027 or later. A past
+  edition's dates belong in a "note", never in those fields.
 - "application_deadline" values must be "YYYY-MM" (month precision).
-- "event_dates" is free text, e.g. "25-28 June 2027" or "July (2026: 3-18)".
+- "event_dates" is free text, e.g. "25-28 June 2027".
 - Skip fields you found nothing reliable for; do not pad.
 
 End your reply with ONLY a JSON array inside a ```json code fence, one
@@ -221,6 +231,16 @@ def _valid_finding(item) -> bool:
     )
 
 
+def mentions_only_past_years(text: str) -> bool:
+    """True when the text names year(s), all earlier than the target season.
+
+    Used to spot event-date strings for an old edition (e.g. "3-18 July 2026")
+    so they don't sit in the field as if they were the upcoming edition's.
+    """
+    years = [int(match) for match in re.findall(r"\b(20\d{2})\b", text)]
+    return bool(years) and max(years) < TARGET_SEASON_YEAR
+
+
 def _parse_month(value: str) -> date | None:
     match = re.match(r"^(\d{4})-(\d{2})(?:-\d{2})?$", value.strip())
     if not match:
@@ -252,11 +272,27 @@ def apply_findings(
         source = item.get("source")
         source = source.strip() if isinstance(source, str) and source.strip() else None
 
+        # The pipeline targets the 2027 season. A date for an earlier edition
+        # must not populate the deadline/event-date fields — record it as a
+        # reference note so the card still reads as "needs the 2027 dates".
         parsed_deadline = None
         if field == "application_deadline":
             parsed_deadline = _parse_month(value)
             if parsed_deadline is None:
                 continue  # unusable date format; don't store noise
+            if parsed_deadline.year < TARGET_SEASON_YEAR:
+                field = "note"
+                value = (
+                    f"{TARGET_SEASON_YEAR} application deadline not published "
+                    f"yet; the most recent edition closed {value}."
+                )
+                parsed_deadline = None
+        elif field == "event_dates" and mentions_only_past_years(value):
+            field = "note"
+            value = (
+                f"{TARGET_SEASON_YEAR} dates not published yet; most recent "
+                f"edition: {value}."
+            )
 
         finding = ResearchFinding(
             run=run,

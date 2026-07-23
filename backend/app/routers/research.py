@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session, selectinload
 from app import enrichment
 from app.config import anthropic_api_key
 from app.db import SessionLocal, get_db
-from app.models import ResearchRun
-from app.schemas import ResearchRunOut, ResearchStarted
+from app.models import ResearchRun, Venue, VenueStatus
+from app.schemas import ResearchRunOut, StaleDatesReset
 from app.security import require_session
 
 logger = logging.getLogger(__name__)
@@ -72,16 +72,21 @@ def _run_research(run_id: int) -> None:
             findings = enrichment.research_batch(payload, progress=note)
             enrichment.apply_findings(db, run, venues, findings)
             kept = sum(1 for f in run.findings if not f.applied)
+            updated = sorted({f.venue_name for f in run.findings if f.applied})
             run.status = "completed"
-            run.summary = (
-                f"Checked {run.venues_checked} venues — "
-                f"{run.fields_filled} fields filled"
-                + (
-                    f", {kept} finding{'s' if kept != 1 else ''} kept for review"
-                    if kept
-                    else ""
+            if updated:
+                fields = run.fields_filled
+                lead = (
+                    f"Updated {len(updated)} of {run.venues_checked} venues "
+                    f"({fields} field{'s' if fields != 1 else ''} filled): "
+                    + ", ".join(updated)
                 )
-                + "."
+            else:
+                lead = f"Checked {run.venues_checked} venues — nothing new to add"
+            run.summary = lead + (
+                f". {kept} finding{'s' if kept != 1 else ''} kept for review."
+                if kept
+                else "."
             )
         except enrichment.DiscoveryError as exc:
             run.status = "failed"
@@ -151,3 +156,40 @@ def get_run(run_id: int, db: Session = Depends(get_db)) -> ResearchRunOut:
     if run is None:
         raise HTTPException(status_code=404, detail="Run not found")
     return _run_out(run)
+
+
+@router.post("/clear-stale-dates", response_model=StaleDatesReset)
+def clear_stale_dates(db: Session = Depends(get_db)) -> StaleDatesReset:
+    """Remove Claude-filled dates that belong to a pre-2027 edition.
+
+    Only fields Claude filled (those carrying a confidence marker) are touched;
+    values entered by hand are left alone. Each affected venue drops back to
+    Discovered so it gets re-researched for the 2027 season.
+    """
+    target = enrichment.TARGET_SEASON_YEAR
+    cleared: list[str] = []
+    for venue in db.scalars(select(Venue)):
+        marks = dict(venue.field_confidence or {})
+        changed = False
+        if (
+            "application_deadline" in marks
+            and venue.application_deadline is not None
+            and venue.application_deadline.year < target
+        ):
+            venue.application_deadline = None
+            marks.pop("application_deadline", None)
+            changed = True
+        if (
+            "event_dates" in marks
+            and venue.event_dates
+            and enrichment.mentions_only_past_years(venue.event_dates)
+        ):
+            venue.event_dates = None
+            marks.pop("event_dates", None)
+            changed = True
+        if changed:
+            venue.field_confidence = marks or None
+            venue.status = VenueStatus.discovered
+            cleared.append(venue.name)
+    db.commit()
+    return StaleDatesReset(cleared=len(cleared), venues=sorted(cleared))

@@ -47,6 +47,13 @@ def _response(text: str, stop_reason: str = "end_turn") -> SimpleNamespace:
     )
 
 
+@pytest.fixture(autouse=True)
+def _no_real_api_key(monkeypatch):
+    # Accepting a venue schedules real enrichment when a key is present;
+    # never let a developer's exported key leak API calls into tests.
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+
 @pytest.fixture()
 def api_key(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
@@ -367,6 +374,92 @@ def test_accept_matches_artist_case_insensitively(auth_client):
     assert response.json()["artists"][0]["artist_id"] == artist_id
     # No duplicate row was created
     assert len(auth_client.get("/api/artists").json()) == 1
+
+
+ENRICH_REPLY = """\
+I researched the venue. Here is the card.
+
+```json
+{
+  "region": {"value": "Occitanie", "confidence": "high"},
+  "website": {"value": "https://www.jazzinmarciac.com", "confidence": "high"},
+  "booking_contact": {"value": "Programming director", "confidence": "medium"},
+  "contact_email": {"value": "prog@jazzinmarciac.com", "confidence": "medium"},
+  "application_method": null,
+  "application_url": {"value": "https://www.jazzinmarciac.com/contact", "confidence": "wild-guess"},
+  "application_deadline": {"value": "2027-01-15", "confidence": "medium"},
+  "event_dates": {"value": "Late July 2027", "confidence": "high"},
+  "research_notes": {"value": "Major jazz festival with a swing stage.", "confidence": "high"}
+}
+```"""
+
+
+def test_parse_enrichment():
+    found = discovery._parse_enrichment(ENRICH_REPLY)
+    assert found["region"] == ("Occitanie", "high")
+    # Unknown confidence levels are coerced to low, null fields dropped
+    assert found["application_url"][1] == "low"
+    assert "application_method" not in found
+    # The deadline is parsed into a real date
+    from datetime import date
+
+    assert found["application_deadline"] == (date(2027, 1, 15), "medium")
+
+
+def test_accept_enriches_empty_fields_only(auth_client, api_key, monkeypatch):
+    from datetime import date
+
+    monkeypatch.setattr(
+        discovery,
+        "run_enrichment",
+        lambda *a, **kw: {
+            "region": ("Occitanie", "high"),
+            "website": ("https://wrong.example", "high"),
+            "contact_email": ("prog@jazzinmarciac.com", "medium"),
+            "application_deadline": (date(2027, 1, 15), "medium"),
+            "research_notes": ("Major jazz festival with a swing stage.", "high"),
+        },
+    )
+    created = auth_client.post(
+        "/api/discovery/accept",
+        json={
+            "name": "Jazz in Marciac",
+            "type": "festival",
+            "city": "Marciac",
+            "country": "France",
+            "website": "https://www.jazzinmarciac.com",
+            "source_url": "https://example.com/lineup",
+        },
+    )
+    assert created.status_code == 201
+
+    venue = auth_client.get(f"/api/venues/{created.json()['id']}").json()
+    # Empty fields were filled with confidence stamps
+    assert venue["region"] == "Occitanie"
+    assert venue["contact_email"] == "prog@jazzinmarciac.com"
+    assert venue["application_deadline"] == "2027-01-15"
+    assert venue["field_confidence"]["region"] == "high"
+    assert venue["field_confidence"]["contact_email"] == "medium"
+    # The suggestion's website was NOT overwritten
+    assert venue["website"] == "https://www.jazzinmarciac.com"
+    assert "website" not in venue["field_confidence"]
+    # Research notes are appended to the source note
+    assert "Source: https://example.com/lineup" in venue["research_notes"]
+    assert "Major jazz festival" in venue["research_notes"]
+
+
+def test_accept_survives_enrichment_failure(auth_client, api_key, monkeypatch):
+    def boom(*args, **kwargs):
+        raise RuntimeError("Claude had a bad day")
+
+    monkeypatch.setattr(discovery, "run_enrichment", boom)
+    created = auth_client.post(
+        "/api/discovery/accept", json={"name": "Le Petit Duc"}
+    )
+    assert created.status_code == 201
+    venue = auth_client.get(f"/api/venues/{created.json()['id']}").json()
+    assert venue["name"] == "Le Petit Duc"
+    assert venue["field_confidence"] in (None, {})
 
 
 def test_accept_without_artist(auth_client):

@@ -557,7 +557,10 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
                       </div>
                     </>
                   ) : state === "accepted" ? (
-                    <p className="suggestion-accepted">Added to the pipeline</p>
+                    <p className="suggestion-accepted">
+                      Added to the pipeline — Claude is researching the card
+                      in the background
+                    </p>
                   ) : (
                     <div className="suggestion-actions">
                       <button

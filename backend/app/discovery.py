@@ -23,7 +23,8 @@ from app.models import VenueType
 
 logger = logging.getLogger(__name__)
 
-DISCOVERY_MODEL = "claude-opus-4-8"
+# Model for every LLM call (scans and Search & fill enrichment).
+DISCOVERY_MODEL = "claude-sonnet-5"
 # Kept small on purpose: each search triggers extra server-side filtering
 # steps, and a scan must finish comfortably inside SCAN_MAX_SECONDS.
 MAX_WEB_SEARCHES = 6

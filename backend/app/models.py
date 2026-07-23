@@ -32,10 +32,33 @@ class DraftStatus(str, enum.Enum):
     sent = "sent"
 
 
+class Band(Base):
+    """A band with its own login and its own private pipeline.
+
+    Every venue, reference artist, draft, and research run belongs to exactly
+    one band; a band only ever sees its own. `anthropic_api_key` is null for
+    bands sharing the deployment's key — they fall back to the env key — and
+    set once a band brings its own.
+    """
+
+    __tablename__ = "bands"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(200))
+    anthropic_api_key: Mapped[str | None] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
 class Venue(Base):
     __tablename__ = "venues"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    band_id: Mapped[int] = mapped_column(
+        ForeignKey("bands.id", ondelete="CASCADE"), index=True
+    )
     name: Mapped[str] = mapped_column(String(200))
     type: Mapped[VenueType] = mapped_column(
         Enum(VenueType, native_enum=False, length=30), default=VenueType.venue
@@ -78,6 +101,9 @@ class Artist(Base):
     __tablename__ = "artists"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    band_id: Mapped[int] = mapped_column(
+        ForeignKey("bands.id", ondelete="CASCADE"), index=True
+    )
     name: Mapped[str] = mapped_column(String(200))
     styles: Mapped[str | None] = mapped_column(String(300))
     country_base: Mapped[str | None] = mapped_column(String(100))
@@ -117,6 +143,9 @@ class EmailDraft(Base):
     __tablename__ = "email_drafts"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    band_id: Mapped[int] = mapped_column(
+        ForeignKey("bands.id", ondelete="CASCADE"), index=True
+    )
     venue_id: Mapped[int] = mapped_column(ForeignKey("venues.id", ondelete="CASCADE"))
     subject: Mapped[str] = mapped_column(String(300))
     body: Mapped[str] = mapped_column(Text)
@@ -136,6 +165,9 @@ class ResearchRun(Base):
     __tablename__ = "research_runs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    band_id: Mapped[int] = mapped_column(
+        ForeignKey("bands.id", ondelete="CASCADE"), index=True
+    )
     status: Mapped[str] = mapped_column(String(20), default="running")
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)

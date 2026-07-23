@@ -27,10 +27,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json();
 }
 
-export function login(password: string): Promise<{ ok: boolean }> {
+export function login(
+  bandName: string,
+  password: string,
+): Promise<{ ok: boolean }> {
   return request("/api/auth/login", {
     method: "POST",
-    body: JSON.stringify({ password }),
+    body: JSON.stringify({ band_name: bandName, password }),
   });
 }
 
@@ -38,7 +41,10 @@ export function logout(): Promise<{ ok: boolean }> {
   return request("/api/auth/logout", { method: "POST" });
 }
 
-export function checkSession(): Promise<{ authenticated: boolean }> {
+export function checkSession(): Promise<{
+  authenticated: boolean;
+  band_name: string;
+}> {
   return request("/api/auth/me");
 }
 

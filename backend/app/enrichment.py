@@ -91,12 +91,14 @@ object per finding, with exactly these keys:
 """
 
 
-def select_venues(db: Session, limit: int = BATCH_SIZE) -> list[Venue]:
-    """Pick the venues most in need of research, oldest-researched first."""
+def select_venues(
+    db: Session, band_id: int, limit: int = BATCH_SIZE
+) -> list[Venue]:
+    """Pick the band's venues most in need of research, oldest-researched first."""
     cutoff = datetime.now(timezone.utc) - RESEARCH_COOLDOWN
     today = date.today()
     candidates = []
-    for venue in db.scalars(select(Venue)):
+    for venue in db.scalars(select(Venue).where(Venue.band_id == band_id)):
         researched = venue.last_researched
         if researched is not None:
             if researched.tzinfo is None:  # SQLite drops tzinfo
@@ -164,7 +166,9 @@ Progress = Callable[[str], None]
 
 
 def research_batch(
-    venues_payload: list[dict], progress: Progress | None = None
+    venues_payload: list[dict],
+    progress: Progress | None = None,
+    api_key: str | None = None,
 ) -> list[dict]:
     """One Claude call researching a batch of venues; returns raw findings."""
     started = time.monotonic()
@@ -181,7 +185,7 @@ def research_batch(
         venues_json=json.dumps(venues_payload, ensure_ascii=False, indent=1),
     )
     client = anthropic.Anthropic(
-        api_key=anthropic_api_key(),
+        api_key=api_key or anthropic_api_key(),
         timeout=REQUEST_TIMEOUT_SECONDS,
         max_retries=1,
     )

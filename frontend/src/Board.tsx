@@ -167,6 +167,7 @@ function VenueCard({
 interface BoardProps {
   venues: Venue[];
   error: string | null;
+  bandName: string;
   onSignOut: () => void;
   onAddVenue: () => void;
   onOpenScan: () => void;
@@ -178,6 +179,7 @@ interface BoardProps {
 export default function Board({
   venues,
   error,
+  bandName,
   onSignOut,
   onAddVenue,
   onOpenScan,
@@ -227,7 +229,9 @@ export default function Board({
     <div className="board-page">
       <header className="board-header">
         <div>
-          <p className="board-overline">Season 2027</p>
+          <p className="board-overline">
+            {bandName ? `${bandName} · Season 2027` : "Season 2027"}
+          </p>
           <h1 className="board-title">Venues</h1>
         </div>
         <div className="board-actions">

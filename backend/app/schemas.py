@@ -210,5 +210,40 @@ class SuggestionAccept(BaseModel):
     _validate_name = field_validator("name")(_require_name)
 
 
+class ResearchFindingOut(BaseModel):
+    """A fact Claude found for a venue during a Search & fill run."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    venue_id: int | None
+    venue_name: str
+    field: str
+    old_value: str | None
+    new_value: str
+    confidence: str
+    source: str | None
+    applied: bool
+
+
+class ResearchStarted(BaseModel):
+    run_id: int
+
+
+class ResearchRunOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    status: str  # running | completed | failed
+    started_at: datetime
+    finished_at: datetime | None
+    venues_checked: int
+    fields_filled: int
+    note: str | None
+    summary: str | None
+    error: str | None
+    findings: list[ResearchFindingOut] = []
+
+
 class LoginRequest(BaseModel):
     password: str

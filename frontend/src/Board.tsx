@@ -84,11 +84,21 @@ function formatDeadline(iso: string): string {
 
 interface VenueCardProps {
   venue: Venue;
+  dragging: boolean;
   onOpen: (venue: Venue) => void;
   onStatusChange: (venue: Venue, status: VenueStatus) => void;
+  onDragStart: (venue: Venue) => void;
+  onDragEnd: () => void;
 }
 
-function VenueCard({ venue, onOpen, onStatusChange }: VenueCardProps) {
+function VenueCard({
+  venue,
+  dragging,
+  onOpen,
+  onStatusChange,
+  onDragStart,
+  onDragEnd,
+}: VenueCardProps) {
   const place = [venue.city, venue.country].filter(Boolean).join(", ");
   const urgent = isUrgent(venue);
   const flag = urgent
@@ -98,7 +108,7 @@ function VenueCard({ venue, onOpen, onStatusChange }: VenueCardProps) {
       : "";
   return (
     <article
-      className={`venue-card${flag}`}
+      className={`venue-card${flag}${dragging ? " venue-card--dragging" : ""}`}
       title={
         urgent
           ? "Application deadline in less than two months"
@@ -108,6 +118,15 @@ function VenueCard({ venue, onOpen, onStatusChange }: VenueCardProps) {
       }
       role="button"
       tabIndex={0}
+      // Native drag works with a mouse (desktop); touch devices don't fire
+      // these events and keep using the status dropdown below.
+      draggable
+      onDragStart={(event) => {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", String(venue.id));
+        onDragStart(venue);
+      }}
+      onDragEnd={onDragEnd}
       onClick={() => onOpen(venue)}
       onKeyDown={(event) => {
         if (event.key === "Enter" && event.target === event.currentTarget) {
@@ -170,6 +189,27 @@ export default function Board({
   const [countryFilter, setCountryFilter] = useState("");
   const [regionFilter, setRegionFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("deadline");
+  // Drag-and-drop between columns (desktop): the card being dragged and the
+  // column currently under the cursor.
+  const [draggingId, setDraggingId] = useState<number | null>(null);
+  const [dragOverStatus, setDragOverStatus] = useState<VenueStatus | null>(null);
+  const draggingVenue =
+    draggingId === null
+      ? null
+      : (venues.find((venue) => venue.id === draggingId) ?? null);
+
+  const endDrag = () => {
+    setDraggingId(null);
+    setDragOverStatus(null);
+  };
+
+  const dropOn = (status: VenueStatus) => {
+    const venue = draggingVenue;
+    endDrag();
+    if (venue && venue.status !== status) {
+      onStatusChange(venue, status);
+    }
+  };
 
   const countries = distinct(venues.map((venue) => venue.country));
   const regions = distinct(venues.map((venue) => venue.region));
@@ -280,8 +320,26 @@ export default function Board({
       <main className="board" aria-label="Booking pipeline">
         {VENUE_STATUSES.map((status) => {
           const column = filtered.filter((venue) => venue.status === status);
+          // Highlight a column as a drop target, but not the card's own column.
+          const isTarget =
+            dragOverStatus === status &&
+            draggingVenue !== null &&
+            draggingVenue.status !== status;
           return (
-            <section className="board-column" key={status}>
+            <section
+              className={`board-column${isTarget ? " board-column--drag-over" : ""}`}
+              key={status}
+              onDragOver={(event) => {
+                if (draggingVenue) {
+                  event.preventDefault(); // allow the drop
+                  setDragOverStatus(status);
+                }
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                dropOn(status);
+              }}
+            >
               <h2 className="column-title">
                 {STATUS_LABELS[status]}
                 <span className="column-count">{column.length}</span>
@@ -293,8 +351,11 @@ export default function Board({
                   <VenueCard
                     key={venue.id}
                     venue={venue}
+                    dragging={venue.id === draggingId}
                     onOpen={onOpenVenue}
                     onStatusChange={onStatusChange}
+                    onDragStart={(v) => setDraggingId(v.id)}
+                    onDragEnd={endDrag}
                   />
                 ))
               )}

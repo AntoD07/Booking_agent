@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   UnauthorizedError,
   checkSession,
@@ -10,8 +10,9 @@ import Board from "./Board";
 import Login from "./Login";
 import ManualScan from "./ManualScan";
 import ResearchDialog from "./ResearchDialog";
+import Toast from "./Toast";
 import VenueSheet from "./VenueSheet";
-import type { Venue, VenueStatus } from "./types";
+import { STATUS_LABELS, type Venue, type VenueStatus } from "./types";
 
 type Session = "checking" | "anonymous" | "authenticated";
 type View = "board" | "scan";
@@ -25,6 +26,11 @@ export default function App() {
   const [active, setActive] = useState<Venue | "new" | null>(null);
   // The Search & fill dialog: starts a research run when opened.
   const [researching, setResearching] = useState(false);
+  // Brief confirmation after a status change — the moved card often lands in
+  // an off-screen column, so the toast is the only sign it worked.
+  const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
+  const toastId = useRef(0);
+  const dismissToast = useCallback(() => setToast(null), []);
 
   const handleError = useCallback((err: unknown) => {
     if (err instanceof UnauthorizedError) {
@@ -94,6 +100,10 @@ export default function App() {
           try {
             await updateVenue(venue.id, { status });
             await loadVenues();
+            setToast({
+              id: (toastId.current += 1),
+              text: `“${venue.name}” moved to ${STATUS_LABELS[status]}`,
+            });
           } catch (err) {
             handleError(err);
           }
@@ -124,6 +134,9 @@ export default function App() {
             loadVenues();
           }}
         />
+      )}
+      {toast && (
+        <Toast key={toast.id} message={toast.text} onDismiss={dismissToast} />
       )}
     </>
   );

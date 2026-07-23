@@ -9,6 +9,7 @@ from datetime import date
 
 from sqlalchemy import select
 
+from app.bands import get_or_create_seed_band
 from app.db import SessionLocal
 from app.models import Artist, Venue, VenueStatus, VenueType
 
@@ -79,13 +80,30 @@ ARTISTS = [
 
 def seed() -> None:
     with SessionLocal() as db:
+        band = get_or_create_seed_band(db)
         added = 0
         for venue in VENUES:
-            if db.scalar(select(Venue).where(Venue.name == venue.name)) is None:
+            if (
+                db.scalar(
+                    select(Venue).where(
+                        Venue.band_id == band.id, Venue.name == venue.name
+                    )
+                )
+                is None
+            ):
+                venue.band_id = band.id
                 db.add(venue)
                 added += 1
         for artist in ARTISTS:
-            if db.scalar(select(Artist).where(Artist.name == artist.name)) is None:
+            if (
+                db.scalar(
+                    select(Artist).where(
+                        Artist.band_id == band.id, Artist.name == artist.name
+                    )
+                )
+                is None
+            ):
+                artist.band_id = band.id
                 db.add(artist)
                 added += 1
         db.commit()

@@ -41,6 +41,7 @@ function researchDoneText(run: ResearchRun): string {
 
 export default function App() {
   const [session, setSession] = useState<Session>("checking");
+  const [bandName, setBandName] = useState("");
   const [view, setView] = useState<View>("board");
   const [venues, setVenues] = useState<Venue[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -154,7 +155,10 @@ export default function App() {
 
   useEffect(() => {
     checkSession()
-      .then(() => setSession("authenticated"))
+      .then((session) => {
+        setBandName(session.band_name);
+        setSession("authenticated");
+      })
       .catch(() => setSession("anonymous"));
   }, []);
 
@@ -169,7 +173,18 @@ export default function App() {
   }
 
   if (session === "anonymous") {
-    return <Login onSuccess={() => setSession("authenticated")} />;
+    return (
+      <Login
+        onSuccess={() =>
+          checkSession()
+            .then((s) => {
+              setBandName(s.band_name);
+              setSession("authenticated");
+            })
+            .catch(() => setSession("anonymous"))
+        }
+      />
+    );
   }
 
   if (view === "scan") {
@@ -190,9 +205,11 @@ export default function App() {
       <Board
         venues={venues}
         error={error}
+        bandName={bandName}
         onSignOut={async () => {
           await logout();
           setSession("anonymous");
+          setBandName("");
           setVenues([]);
         }}
         onAddVenue={() => setActive("new")}

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app import discovery
 from app.config import anthropic_api_key
 from app.db import SessionLocal, get_db
-from app.models import Artist, Venue, VenueArtist, VenueStatus
+from app.models import Artist, Band, Venue, VenueArtist, VenueStatus
 from app.schemas import (
     DiscoveryOut,
     DiscoveryRequest,
@@ -23,15 +23,16 @@ from app.schemas import (
     SuggestionOut,
     VenueOut,
 )
-from app.security import require_session
+from app.security import current_band
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(
-    prefix="/api/discovery",
-    tags=["discovery"],
-    dependencies=[Depends(require_session)],
-)
+router = APIRouter(prefix="/api/discovery", tags=["discovery"])
+
+
+def _api_key_for(band: Band) -> str | None:
+    """The band's own key when it has one, otherwise the shared env key."""
+    return band.anthropic_api_key or anthropic_api_key()
 
 # Scans run for minutes — far longer than a browser or proxy will happily
 # hold a request open — so they run as background jobs the client polls.
@@ -41,8 +42,8 @@ _jobs_lock = Lock()
 _JOB_TTL = timedelta(hours=2)
 
 
-def _require_api_key() -> None:
-    if not anthropic_api_key():
+def _require_api_key(band: Band) -> None:
+    if not _api_key_for(band):
         raise HTTPException(
             status_code=503, detail="ANTHROPIC_API_KEY is not configured"
         )
@@ -92,8 +93,13 @@ def _finish_job(
             job["result"] = result
 
 
-def _with_pipeline_matches(found: list[dict], db: Session) -> DiscoveryOut:
-    existing = [(v.id, v.name) for v in db.scalars(select(Venue))]
+def _with_pipeline_matches(
+    found: list[dict], db: Session, band_id: int
+) -> DiscoveryOut:
+    existing = [
+        (v.id, v.name)
+        for v in db.scalars(select(Venue).where(Venue.band_id == band_id))
+    ]
     suggestions = []
     for item in found:
         match = discovery.find_pipeline_match(item["name"], existing)
@@ -111,6 +117,7 @@ def _with_pipeline_matches(found: list[dict], db: Session) -> DiscoveryOut:
 def _run_scan_job(
     job_id: str,
     scan: Callable[[], list[dict]],
+    band_id: int,
     stamp_artists: list[str] | None = None,
 ) -> None:
     """Run a scan in the background and record the outcome on the job."""
@@ -141,16 +148,16 @@ def _run_scan_job(
     db = SessionLocal()
     try:
         if stamp_artists:
-            # Record the scan time on artists we know, so the picker can show
-            # when each one was last scouted. Free-text names only get a row
-            # on accept.
+            # Record the scan time on this band's artists we know, so the
+            # picker can show when each was last scouted. Free-text names
+            # only get a row on accept.
             scanned = {name.lower() for name in stamp_artists}
             now = datetime.now(timezone.utc)
-            for artist in db.scalars(select(Artist)):
+            for artist in db.scalars(select(Artist).where(Artist.band_id == band_id)):
                 if artist.name.lower() in scanned:
                     artist.last_scanned = now
             db.commit()
-        result = _with_pipeline_matches(found, db)
+        result = _with_pipeline_matches(found, db, band_id)
     finally:
         db.close()
     _finish_job(job_id, result=result)
@@ -158,15 +165,21 @@ def _run_scan_job(
 
 @router.post("", response_model=ScanStarted, status_code=202)
 def discover(
-    payload: DiscoveryRequest, background_tasks: BackgroundTasks
+    payload: DiscoveryRequest,
+    background_tasks: BackgroundTasks,
+    band: Band = Depends(current_band),
 ) -> ScanStarted:
     """Start a scan of 1-5 reference artists' circuits for venues."""
-    _require_api_key()
+    _require_api_key(band)
+    api_key = _api_key_for(band)
     job_id = _create_job()
     background_tasks.add_task(
         _run_scan_job,
         job_id,
-        lambda: discovery.run_discovery(payload.artists, progress=_job_note(job_id)),
+        lambda: discovery.run_discovery(
+            payload.artists, progress=_job_note(job_id), api_key=api_key
+        ),
+        band.id,
         payload.artists,
     )
     return ScanStarted(job_id=job_id)
@@ -174,10 +187,13 @@ def discover(
 
 @router.post("/general", response_model=ScanStarted, status_code=202)
 def general_scan(
-    payload: GeneralScanRequest, background_tasks: BackgroundTasks
+    payload: GeneralScanRequest,
+    background_tasks: BackgroundTasks,
+    band: Band = Depends(current_band),
 ) -> ScanStarted:
     """Start a scan of a region for festivals/venues of a type over a period."""
-    _require_api_key()
+    _require_api_key(band)
+    api_key = _api_key_for(band)
     job_id = _create_job()
     background_tasks.add_task(
         _run_scan_job,
@@ -187,17 +203,19 @@ def general_scan(
             payload.event_type,
             payload.period,
             progress=_job_note(job_id),
+            api_key=api_key,
         ),
+        band.id,
     )
     return ScanStarted(job_id=job_id)
 
 
 @router.get("/ping")
-def ping() -> dict:
+def ping(band: Band = Depends(current_band)) -> dict:
     """Cheap end-to-end check of the Claude connection (fractions of a cent)."""
-    _require_api_key()
+    _require_api_key(band)
     try:
-        return discovery.ping()
+        return discovery.ping(api_key=_api_key_for(band))
     except anthropic.APIStatusError as exc:
         raise HTTPException(status_code=502, detail=f"Claude API error: {exc.message}")
     except anthropic.APIConnectionError as exc:
@@ -207,7 +225,7 @@ def ping() -> dict:
 
 
 @router.get("/jobs/{job_id}", response_model=ScanJobOut)
-def scan_job(job_id: str) -> ScanJobOut:
+def scan_job(job_id: str, band: Band = Depends(current_band)) -> ScanJobOut:
     with _jobs_lock:
         job = _jobs.get(job_id)
     if job is None:
@@ -222,7 +240,7 @@ def scan_job(job_id: str) -> ScanJobOut:
     )
 
 
-def _run_enrichment_job(venue_id: int) -> None:
+def _run_enrichment_job(venue_id: int, api_key: str | None) -> None:
     """Research an accepted venue and fill its still-empty card fields.
 
     Runs in the background after accept. Human edits win: only fields
@@ -237,7 +255,7 @@ def _run_enrichment_job(venue_id: int) -> None:
         logger.info("enrichment: researching venue %s (%s)", venue_id, venue.name)
         try:
             found = discovery.run_enrichment(
-                venue.name, venue.city, venue.country, venue.website
+                venue.name, venue.city, venue.country, venue.website, api_key=api_key
             )
         except Exception:  # noqa: BLE001 — enrichment must never break accept
             logger.exception("enrichment for venue %s failed", venue_id)
@@ -273,6 +291,7 @@ def accept_suggestion(
     payload: SuggestionAccept,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
+    band: Band = Depends(current_band),
 ) -> Venue:
     """Turn a reviewed suggestion into a pipeline venue.
 
@@ -299,24 +318,27 @@ def accept_suggestion(
         source=source,
         research_notes=notes,
         added_by="Claude",
+        band_id=band.id,
     )
     db.add(venue)
     db.flush()
     if payload.artist:
         # Case-insensitive match so "die drahtzieher" doesn't duplicate
-        # "Die Drahtzieher" in the artists table.
+        # "Die Drahtzieher" in this band's artists table.
         artist = db.scalar(
             select(Artist).where(
-                func.lower(Artist.name) == payload.artist.lower()
+                Artist.band_id == band.id,
+                func.lower(Artist.name) == payload.artist.lower(),
             )
         )
         if artist is None:
-            artist = Artist(name=payload.artist)
+            artist = Artist(name=payload.artist, band_id=band.id)
             db.add(artist)
             db.flush()
         db.add(VenueArtist(venue_id=venue.id, artist_id=artist.id))
     db.commit()
     db.refresh(venue)
-    if anthropic_api_key():
-        background_tasks.add_task(_run_enrichment_job, venue.id)
+    api_key = _api_key_for(band)
+    if api_key:
+        background_tasks.add_task(_run_enrichment_job, venue.id, api_key)
     return venue

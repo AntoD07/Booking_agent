@@ -253,4 +253,14 @@ class ResearchRunOut(BaseModel):
 
 
 class LoginRequest(BaseModel):
+    band_name: str
     password: str
+
+    _validate_band = field_validator("band_name")(_require_name)
+
+
+class SessionOut(BaseModel):
+    """Who the current session is signed in as."""
+
+    authenticated: bool = True
+    band_name: str

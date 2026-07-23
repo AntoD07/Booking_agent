@@ -135,14 +135,14 @@ class DiscoveryError(Exception):
     """Claude replied, but not with a usable suggestion list."""
 
 
-def ping() -> dict:
+def ping(api_key: str | None = None) -> dict:
     """A near-free Claude round-trip to verify key, network, and model.
 
     Costs a fraction of a cent — use it to rule out infrastructure before
     burning money on full scans.
     """
     client = anthropic.Anthropic(
-        api_key=anthropic_api_key(), timeout=30.0, max_retries=0
+        api_key=api_key or anthropic_api_key(), timeout=30.0, max_retries=0
     )
     started = time.monotonic()
     response = client.messages.create(
@@ -215,13 +215,15 @@ Progress = Callable[[str], None]
 
 
 def run_discovery(
-    artist_names: list[str], progress: Progress | None = None
+    artist_names: list[str],
+    progress: Progress | None = None,
+    api_key: str | None = None,
 ) -> list[dict]:
     if len(artist_names) > 1:
         joined = ", ".join(artist_names[:-1]) + " and " + artist_names[-1]
     else:
         joined = artist_names[0]
-    return _run_prompt(_PROMPT.format(artists=joined), progress)
+    return _run_prompt(_PROMPT.format(artists=joined), progress, api_key)
 
 
 def run_general_discovery(
@@ -229,17 +231,19 @@ def run_general_discovery(
     event_type: VenueType | None,
     period: str | None,
     progress: Progress | None = None,
+    api_key: str | None = None,
 ) -> list[dict]:
     what = _TYPE_PHRASES.get(event_type, "festivals, jazz clubs, and concert venues")
     period_clause = f" during {period}" if period else ""
     return _run_prompt(
         _GENERAL_PROMPT.format(what=what, region=region, period_clause=period_clause),
         progress,
+        api_key,
     )
 
 
 def _stream_turns(
-    prompt: str, progress: Progress | None = None
+    prompt: str, progress: Progress | None = None, api_key: str | None = None
 ) -> tuple[str, str | None]:
     """Run one prompt to completion (incl. pause_turn continuations).
 
@@ -255,7 +259,7 @@ def _stream_turns(
             progress(stamped)
 
     client = anthropic.Anthropic(
-        api_key=anthropic_api_key(),
+        api_key=api_key or anthropic_api_key(),
         timeout=REQUEST_TIMEOUT_SECONDS,
         max_retries=1,
     )
@@ -281,8 +285,10 @@ def _stream_turns(
     return text, response.stop_reason
 
 
-def _run_prompt(prompt: str, progress: Progress | None = None) -> list[dict]:
-    text, stop_reason = _stream_turns(prompt, progress)
+def _run_prompt(
+    prompt: str, progress: Progress | None = None, api_key: str | None = None
+) -> list[dict]:
+    text, stop_reason = _stream_turns(prompt, progress, api_key)
     try:
         suggestions = _parse_suggestions(text)
     except DiscoveryError:
@@ -303,6 +309,7 @@ def run_enrichment(
     country: str | None = None,
     website: str | None = None,
     progress: Progress | None = None,
+    api_key: str | None = None,
 ) -> dict[str, tuple]:
     """Research one venue and return {field: (value, confidence)}."""
     place = ", ".join(part for part in (city, country) if part)
@@ -311,7 +318,7 @@ def run_enrichment(
         place_clause=f" in {place}" if place else "",
         website_clause=f" — website: {website}" if website else "",
     )
-    text, _ = _stream_turns(prompt, progress)
+    text, _ = _stream_turns(prompt, progress, api_key)
     return _parse_enrichment(text)
 
 

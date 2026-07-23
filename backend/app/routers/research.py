@@ -9,30 +9,35 @@ from sqlalchemy.orm import Session, selectinload
 from app import enrichment
 from app.config import anthropic_api_key
 from app.db import SessionLocal, get_db
-from app.models import ResearchRun, Venue, VenueStatus
+from app.models import Band, ResearchRun, Venue, VenueStatus
 from app.schemas import ResearchRunOut, StaleDatesReset
-from app.security import require_session
+from app.security import current_band
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(
-    prefix="/api/research",
-    tags=["research"],
-    dependencies=[Depends(require_session)],
-)
+router = APIRouter(prefix="/api/research", tags=["research"])
 
 
-def _require_api_key() -> None:
-    if not anthropic_api_key():
+def _api_key_for(band: Band) -> str | None:
+    """The band's own key when it has one, otherwise the shared env key."""
+    return band.anthropic_api_key or anthropic_api_key()
+
+
+def _require_api_key(band: Band) -> None:
+    if not _api_key_for(band):
         raise HTTPException(
             status_code=503, detail="ANTHROPIC_API_KEY is not configured"
         )
 
 
-def _fail_stale_runs(db: Session) -> None:
+def _fail_stale_runs(db: Session, band_id: int) -> None:
     """A run left "running" by a restart must not lock the button forever."""
     cutoff = datetime.now(timezone.utc) - enrichment.STALE_RUN_AFTER
-    for run in db.scalars(select(ResearchRun).where(ResearchRun.status == "running")):
+    for run in db.scalars(
+        select(ResearchRun).where(
+            ResearchRun.band_id == band_id, ResearchRun.status == "running"
+        )
+    ):
         started = run.started_at
         if started.tzinfo is None:  # SQLite drops tzinfo
             started = started.replace(tzinfo=timezone.utc)
@@ -43,8 +48,8 @@ def _fail_stale_runs(db: Session) -> None:
     db.commit()
 
 
-def _run_research(run_id: int) -> None:
-    """Background job: research a batch of venues and record the outcome."""
+def _run_research(run_id: int, band_id: int, api_key: str | None) -> None:
+    """Background job: research a batch of the band's venues and record it."""
     db = SessionLocal()
     try:
         run = db.get(ResearchRun, run_id)
@@ -56,7 +61,7 @@ def _run_research(run_id: int) -> None:
             db.commit()
 
         try:
-            venues = enrichment.select_venues(db)
+            venues = enrichment.select_venues(db, band_id)
             if not venues:
                 run.status = "completed"
                 run.summary = (
@@ -69,7 +74,7 @@ def _run_research(run_id: int) -> None:
                 enrichment._venue_payload(v, enrichment.missing_fields(v))
                 for v in venues
             ]
-            findings = enrichment.research_batch(payload, progress=note)
+            findings = enrichment.research_batch(payload, progress=note, api_key=api_key)
             enrichment.apply_findings(db, run, venues, findings)
             kept = sum(1 for f in run.findings if not f.applied)
             updated = sorted({f.venue_name for f in run.findings if f.applied})
@@ -118,31 +123,36 @@ def _run_out(run: ResearchRun) -> ResearchRunOut:
 
 @router.post("/runs", response_model=ResearchRunOut, status_code=202)
 def start_run(
-    background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    band: Band = Depends(current_band),
 ) -> ResearchRunOut:
     """Start a Search & fill run, or return the one already running."""
-    _require_api_key()
-    _fail_stale_runs(db)
+    _require_api_key(band)
+    _fail_stale_runs(db, band.id)
     active = db.scalar(
         select(ResearchRun)
-        .where(ResearchRun.status == "running")
+        .where(ResearchRun.band_id == band.id, ResearchRun.status == "running")
         .order_by(ResearchRun.started_at.desc())
     )
     if active is not None:
         return _run_out(active)
-    run = ResearchRun(note="Starting…")
+    run = ResearchRun(note="Starting…", band_id=band.id)
     db.add(run)
     db.commit()
     db.refresh(run)
-    background_tasks.add_task(_run_research, run.id)
+    background_tasks.add_task(_run_research, run.id, band.id, _api_key_for(band))
     return _run_out(run)
 
 
 @router.get("/runs", response_model=list[ResearchRunOut])
-def list_runs(db: Session = Depends(get_db)) -> list[ResearchRunOut]:
+def list_runs(
+    db: Session = Depends(get_db), band: Band = Depends(current_band)
+) -> list[ResearchRunOut]:
     """Recent runs, newest first — past findings stay reviewable."""
     runs = db.scalars(
         select(ResearchRun)
+        .where(ResearchRun.band_id == band.id)
         .options(selectinload(ResearchRun.findings))
         .order_by(ResearchRun.started_at.desc())
         .limit(10)
@@ -151,15 +161,21 @@ def list_runs(db: Session = Depends(get_db)) -> list[ResearchRunOut]:
 
 
 @router.get("/runs/{run_id}", response_model=ResearchRunOut)
-def get_run(run_id: int, db: Session = Depends(get_db)) -> ResearchRunOut:
+def get_run(
+    run_id: int,
+    db: Session = Depends(get_db),
+    band: Band = Depends(current_band),
+) -> ResearchRunOut:
     run = db.get(ResearchRun, run_id, options=[selectinload(ResearchRun.findings)])
-    if run is None:
+    if run is None or run.band_id != band.id:
         raise HTTPException(status_code=404, detail="Run not found")
     return _run_out(run)
 
 
 @router.post("/clear-stale-dates", response_model=StaleDatesReset)
-def clear_stale_dates(db: Session = Depends(get_db)) -> StaleDatesReset:
+def clear_stale_dates(
+    db: Session = Depends(get_db), band: Band = Depends(current_band)
+) -> StaleDatesReset:
     """Remove Claude-filled dates that belong to a pre-2027 edition.
 
     Only fields Claude filled (those carrying a confidence marker) are touched;
@@ -168,7 +184,7 @@ def clear_stale_dates(db: Session = Depends(get_db)) -> StaleDatesReset:
     """
     target = enrichment.TARGET_SEASON_YEAR
     cleared: list[str] = []
-    for venue in db.scalars(select(Venue)):
+    for venue in db.scalars(select(Venue).where(Venue.band_id == band.id)):
         marks = dict(venue.field_confidence or {})
         changed = False
         if (

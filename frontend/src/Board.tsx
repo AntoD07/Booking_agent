@@ -74,12 +74,10 @@ function isIncomplete(venue: Venue): boolean {
   return !hasContact;
 }
 
-// Deadlines have month granularity: show "January 2027".
+// Deadlines have month granularity, and the whole board is the 2027 season,
+// so the year is noise — show just "January".
 function formatDeadline(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "long",
-    year: "numeric",
-  });
+  return new Date(iso).toLocaleDateString(undefined, { month: "long" });
 }
 
 interface VenueCardProps {

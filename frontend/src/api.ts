@@ -167,6 +167,16 @@ export function fetchResearchRuns(): Promise<ResearchRun[]> {
   return request("/api/research/runs");
 }
 
+export interface StaleDatesReset {
+  cleared: number;
+  venues: string[];
+}
+
+/** Clear Claude-filled dates from a past edition; affected cards go to Discovered. */
+export function clearStaleDates(): Promise<StaleDatesReset> {
+  return request("/api/research/clear-stale-dates", { method: "POST" });
+}
+
 export function removeAppearance(
   venueId: number,
   artistId: number,

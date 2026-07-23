@@ -23,7 +23,9 @@ from app.models import VenueType
 logger = logging.getLogger(__name__)
 
 DISCOVERY_MODEL = "claude-opus-4-8"
-MAX_WEB_SEARCHES = 12
+# Kept small on purpose: each search triggers extra server-side filtering
+# steps, and a scan must finish comfortably inside SCAN_MAX_SECONDS.
+MAX_WEB_SEARCHES = 6
 # With streaming this bounds the wait for the next event, not the whole
 # scan — a healthy scan sends events continuously, so a long gap means the
 # request is stuck and should fail rather than zombie.
@@ -45,7 +47,7 @@ Use web search to find real, verifiable appearances — concert listings,
 festival line-ups, venue programmes, tour date pages. Prefer places that
 regularly programme gypsy jazz or swing. Only include venues in Europe.
 
-Return 8 to 15 suggestions. End your reply with ONLY a JSON array inside a
+Return 6 to 12 suggestions. End your reply with ONLY a JSON array inside a
 ```json code fence, one object per venue, with exactly these keys:
 - "name": the venue or festival name
 - "type": one of "festival", "venue", "jazz_club", "bar", "cultural_center"
@@ -67,7 +69,7 @@ Use web search to find real, current listings — festival calendars, venue
 programmes, cultural agendas, event announcements. Only include places in
 Europe.
 
-Return 8 to 15 suggestions. End your reply with ONLY a JSON array inside a
+Return 6 to 12 suggestions. End your reply with ONLY a JSON array inside a
 ```json code fence, one object per venue, with exactly these keys:
 - "name": the venue or festival name
 - "type": one of "festival", "venue", "jazz_club", "bar", "cultural_center"
@@ -124,10 +126,12 @@ def _create_message(
     # while a stream keeps the connection alive until the turn completes.
     # Iterating the events lets us surface live progress and enforce the
     # scan-wide deadline mid-turn.
-    searches = 0
+    steps = 0
     with client.messages.stream(
         model=DISCOVERY_MODEL,
-        max_tokens=8000,
+        # Thinking counts against this too; leave generous headroom so the
+        # final JSON list never gets cut off mid-reply.
+        max_tokens=16000,
         thinking={"type": "adaptive"},
         # Scans are retrieval, not hard reasoning; medium is faster and
         # plenty for this task.
@@ -151,8 +155,11 @@ def _create_message(
                 continue
             block_type = getattr(event.content_block, "type", None)
             if block_type == "server_tool_use":
-                searches += 1
-                note(f"Web search {searches} running…")
+                # Counts searches AND the tool's internal filtering steps —
+                # so this number can exceed MAX_WEB_SEARCHES; it's a
+                # liveness signal, not a search count.
+                steps += 1
+                note(f"Research step {steps}…")
             elif block_type == "thinking":
                 note("Claude is thinking…")
             elif block_type == "text":
@@ -221,7 +228,15 @@ def _run_prompt(prompt: str, progress: Progress | None = None) -> list[dict]:
     text = "".join(
         block.text for block in response.content if block.type == "text"
     )
-    suggestions = _parse_suggestions(text)
+    try:
+        suggestions = _parse_suggestions(text)
+    except DiscoveryError:
+        if response.stop_reason == "max_tokens":
+            raise DiscoveryError(
+                "Claude ran out of room before writing the suggestion list "
+                "— try again with fewer artists or a narrower search"
+            )
+        raise
     note(f"Parsed {len(suggestions)} suggestions from Claude's reply")
     return suggestions
 

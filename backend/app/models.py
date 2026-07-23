@@ -62,6 +62,9 @@ class Venue(Base):
     # Per-field research confidence for values filled by Claude,
     # e.g. {"contact_email": "high"}. Cleared per field when a human edits it.
     field_confidence: Mapped[dict | None] = mapped_column(JSON)
+    # When "Search & fill" last researched this venue; recently researched
+    # venues are skipped so repeated runs move through the whole pipeline.
+    last_researched: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     artists: Mapped[list["VenueArtist"]] = relationship(
         back_populates="venue", cascade="all, delete-orphan"
@@ -125,3 +128,51 @@ class EmailDraft(Base):
     )
 
     venue: Mapped[Venue] = relationship(back_populates="drafts")
+
+
+class ResearchRun(Base):
+    """One click of "Search & fill": a batch of venues researched by Claude."""
+
+    __tablename__ = "research_runs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    status: Mapped[str] = mapped_column(String(20), default="running")
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    venues_checked: Mapped[int] = mapped_column(default=0)
+    fields_filled: Mapped[int] = mapped_column(default=0)
+    # Latest progress step while running; a human-readable recap when done.
+    note: Mapped[str | None] = mapped_column(String(300))
+    summary: Mapped[str | None] = mapped_column(Text)
+    error: Mapped[str | None] = mapped_column(Text)
+
+    findings: Mapped[list["ResearchFinding"]] = relationship(
+        back_populates="run", cascade="all, delete-orphan"
+    )
+
+
+class ResearchFinding(Base):
+    """A single fact Claude found for a venue, and whether it was applied."""
+
+    __tablename__ = "research_findings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    run_id: Mapped[int] = mapped_column(
+        ForeignKey("research_runs.id", ondelete="CASCADE")
+    )
+    venue_id: Mapped[int | None] = mapped_column(
+        ForeignKey("venues.id", ondelete="SET NULL")
+    )
+    # Kept denormalized so findings stay readable after a venue is deleted.
+    venue_name: Mapped[str] = mapped_column(String(200))
+    field: Mapped[str] = mapped_column(String(50))
+    old_value: Mapped[str | None] = mapped_column(Text)
+    new_value: Mapped[str] = mapped_column(Text)
+    confidence: Mapped[str] = mapped_column(String(10))
+    source: Mapped[str | None] = mapped_column(String(500))
+    # False when the venue already had a human-verified value we kept.
+    applied: Mapped[bool] = mapped_column(default=True)
+
+    run: Mapped[ResearchRun] = relationship(back_populates="findings")

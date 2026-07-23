@@ -61,6 +61,18 @@ RESEARCHABLE_FIELDS = [
     "note",
 ]
 
+# Column limits for the text fields Claude fills — a value longer than this is
+# truncated before storage, so an over-long answer never aborts the whole
+# batch's commit. Must match the String(...) lengths on the Venue model.
+_FIELD_MAX_LEN = {
+    "website": 500,
+    "contact_email": 200,
+    "booking_contact": 200,
+    "application_method": 200,
+    "application_url": 500,
+    "event_dates": 200,
+}
+
 _PROMPT = """\
 We are a gypsy jazz (jazz manouche) quartet booking our 2027 season across
 Europe. Today is {today}. Below are venues and festivals from our booking
@@ -88,6 +100,9 @@ Rules:
   edition's dates belong in a "note", never in those fields.
 - "application_deadline" values must be "YYYY-MM" (month precision).
 - "event_dates" is free text, e.g. "25-28 June 2027".
+- "application_method" is a short phrase, e.g. "Email", "Online form",
+  "Curated (no open call)" — not a paragraph. Put any detail in a "note".
+- Keep field values concise; long explanations belong in a "note".
 - Skip fields you found nothing reliable for; do not pad.
 
 End your reply with ONLY a JSON array inside a ```json code fence, one
@@ -330,6 +345,10 @@ def apply_findings(
                 marks[field] = confidence
                 run.fields_filled += 1
         else:
+            max_len = _FIELD_MAX_LEN.get(field)
+            if max_len and len(value) > max_len:
+                value = value[:max_len].rstrip()
+                finding.new_value = value  # store what we actually kept
             current = getattr(venue, field)
             finding.old_value = current
             if current and field not in marks:

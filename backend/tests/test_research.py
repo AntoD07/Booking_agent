@@ -290,6 +290,32 @@ def test_clear_stale_dates_targets_only_claude_filled(auth_client):
         assert f.application_deadline == date(2027, 1, 1)  # untouched
 
 
+def test_overlong_value_is_capped_not_crashed(client):
+    long_method = "Curated booking via the resort; " + "detail " * 60  # >200 chars
+    assert len(long_method) > 200
+    with SessionLocal() as db:
+        venue = _make_venue(db, name="Enghien Jazz")
+        _apply(
+            db,
+            venue,
+            [
+                {
+                    "venue_id": venue.id,
+                    "field": "application_method",
+                    "value": long_method,
+                    "confidence": "medium",
+                    "source": None,
+                }
+            ],
+        )
+        refreshed = db.get(Venue, venue.id)
+        assert refreshed.application_method is not None
+        assert len(refreshed.application_method) <= 200
+        # The stored finding reflects the capped value, so it fits its column too.
+        stored = db.scalars(select(ResearchFinding)).all()
+        assert stored and len(stored[0].new_value) <= 200
+
+
 def test_orphaned_running_run_failed_at_startup(client):
     from app.routers import research
 

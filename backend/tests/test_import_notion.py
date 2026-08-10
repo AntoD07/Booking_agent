@@ -25,7 +25,7 @@ def test_import_populates_and_removes_placeholders(client):
 
     venues, artists = _counts()
     assert venues == 69
-    assert artists == 2
+    assert artists == 10
 
     with SessionLocal() as db:
         assert db.scalar(select(Venue).where(Venue.source == "seed")) is None
@@ -96,7 +96,7 @@ def test_import_is_idempotent_and_keeps_edits(client):
 
     run_import()
 
-    assert _counts() == (69, 2)
+    assert _counts() == (69, 10)
     with SessionLocal() as db:
         venue = db.scalar(select(Venue).where(Venue.name == "New Morning"))
         assert venue.status == VenueStatus.confirmed

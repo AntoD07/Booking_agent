@@ -130,6 +130,26 @@ class EmailDraft(Base):
     venue: Mapped[Venue] = relationship(back_populates="drafts")
 
 
+class BandProfile(Base):
+    """The band's own details, reused in every pitch draft. A single row
+    (id == 1); the fixed pitch prose lives in app.drafting, this holds only
+    the parts that change without a redeploy — who signs, contact, and the
+    links (live videos, EPK) that get updated as the album rolls out."""
+
+    __tablename__ = "band_profile"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    band_name: Mapped[str] = mapped_column(String(120), default="Gipsy Tonic")
+    signature_name: Mapped[str] = mapped_column(String(120), default="Antony")
+    phone: Mapped[str | None] = mapped_column(String(60))
+    email: Mapped[str | None] = mapped_column(String(200))
+    website: Mapped[str | None] = mapped_column(String(200))
+    # Two live-excerpt links and the EPK link; empty until filled in.
+    video1_url: Mapped[str | None] = mapped_column(String(500))
+    video2_url: Mapped[str | None] = mapped_column(String(500))
+    epk_url: Mapped[str | None] = mapped_column(String(500))
+
+
 class ResearchRun(Base):
     """One click of "Search & fill": a batch of venues researched by Claude."""
 

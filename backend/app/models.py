@@ -149,6 +149,8 @@ class EmailDraft(Base):
     venue_id: Mapped[int] = mapped_column(ForeignKey("venues.id", ondelete="CASCADE"))
     subject: Mapped[str] = mapped_column(String(300))
     body: Mapped[str] = mapped_column(Text)
+    # Page Claude used to ground the opening personalisation line, if any.
+    source: Mapped[str | None] = mapped_column(String(500))
     status: Mapped[DraftStatus] = mapped_column(
         Enum(DraftStatus, native_enum=False, length=20), default=DraftStatus.draft
     )
@@ -157,6 +159,29 @@ class EmailDraft(Base):
     )
 
     venue: Mapped[Venue] = relationship(back_populates="drafts")
+
+
+class BandProfile(Base):
+    """A band's own details, reused in every pitch draft — one row per band.
+    The fixed pitch prose lives in app.drafting; this holds only the parts
+    that change without a redeploy — who signs, contact, and the links (live
+    videos, EPK) that get updated as the album rolls out."""
+
+    __tablename__ = "band_profile"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    band_id: Mapped[int] = mapped_column(
+        ForeignKey("bands.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    band_name: Mapped[str] = mapped_column(String(120), default="Gipsy Tonic")
+    signature_name: Mapped[str] = mapped_column(String(120), default="Antony")
+    phone: Mapped[str | None] = mapped_column(String(60))
+    email: Mapped[str | None] = mapped_column(String(200))
+    website: Mapped[str | None] = mapped_column(String(200))
+    # Two live-excerpt links and the EPK link; empty until filled in.
+    video1_url: Mapped[str | None] = mapped_column(String(500))
+    video2_url: Mapped[str | None] = mapped_column(String(500))
+    epk_url: Mapped[str | None] = mapped_column(String(500))
 
 
 class ResearchRun(Base):

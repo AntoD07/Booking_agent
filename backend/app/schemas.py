@@ -130,8 +130,55 @@ class EmailDraftOut(BaseModel):
     venue_id: int
     subject: str
     body: str
+    source: str | None
     status: DraftStatus
     created_at: datetime
+
+
+class EmailDraftUpdate(BaseModel):
+    """Edit a draft's text or move it draft → approved → sent (all by hand)."""
+
+    subject: str | None = None
+    body: str | None = None
+    status: DraftStatus | None = None
+
+    @field_validator("subject", "body")
+    @classmethod
+    def _not_blank(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("must not be blank")
+        return value
+
+
+class BandProfileOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    band_name: str
+    signature_name: str
+    phone: str | None
+    email: str | None
+    website: str | None
+    video1_url: str | None
+    video2_url: str | None
+    epk_url: str | None
+
+
+class BandProfileUpdate(BaseModel):
+    band_name: str | None = None
+    signature_name: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    website: str | None = None
+    video1_url: str | None = None
+    video2_url: str | None = None
+    epk_url: str | None = None
+
+    @field_validator("band_name", "signature_name")
+    @classmethod
+    def _not_blank(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("must not be blank")
+        return value.strip() if value is not None else value
 
 
 class DiscoveryRequest(BaseModel):

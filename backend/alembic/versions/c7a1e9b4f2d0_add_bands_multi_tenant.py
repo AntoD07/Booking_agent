@@ -1,12 +1,13 @@
-"""add bands and scope venues/artists/drafts/runs to a band
+"""add bands and scope venues/artists/drafts/runs/profile to a band
 
 Introduces per-band access. Creates the `bands` table, seeds one band from
 SEED_BAND_NAME + APP_PASSWORD to own the data that already exists, then adds
 a non-null band_id to every owner table, backfilling existing rows to that
-seed band before enforcing the constraint.
+seed band before enforcing the constraint. The single band_profile row is
+scoped the same way, one profile per band.
 
 Revision ID: c7a1e9b4f2d0
-Revises: e6f3a9c27b41
+Revises: d8b2f0a15c37
 Create Date: 2026-07-23 12:00:00.000000
 
 """
@@ -18,7 +19,7 @@ from alembic import op
 from app.passwords import hash_password
 
 revision = 'c7a1e9b4f2d0'
-down_revision = 'e6f3a9c27b41'
+down_revision = 'd8b2f0a15c37'
 branch_labels = None
 depends_on = None
 
@@ -78,8 +79,25 @@ def upgrade() -> None:
             )
             batch.create_index(f'ix_{table}_band_id', ['band_id'])
 
+    # band_profile is one row per band (the identity used in pitch signatures).
+    # Any pre-existing single profile becomes the seed band's.
+    op.add_column('band_profile', sa.Column('band_id', sa.Integer(), nullable=True))
+    op.execute(
+        sa.text("UPDATE band_profile SET band_id = :bid").bindparams(bid=seed_id)
+    )
+    with op.batch_alter_table('band_profile') as batch:
+        batch.alter_column('band_id', existing_type=sa.Integer(), nullable=False)
+        batch.create_foreign_key(
+            'fk_band_profile_band_id', 'bands', ['band_id'], ['id'], ondelete='CASCADE'
+        )
+        batch.create_index('ix_band_profile_band_id', ['band_id'], unique=True)
+
 
 def downgrade() -> None:
+    with op.batch_alter_table('band_profile') as batch:
+        batch.drop_index('ix_band_profile_band_id')
+        batch.drop_constraint('fk_band_profile_band_id', type_='foreignkey')
+    op.drop_column('band_profile', 'band_id')
     for table in _OWNER_TABLES:
         with op.batch_alter_table(table) as batch:
             batch.drop_index(f'ix_{table}_band_id')

@@ -124,6 +124,39 @@ export interface ResearchRun {
   findings: ResearchFinding[];
 }
 
+export const DRAFT_STATUSES = ["draft", "approved", "sent"] as const;
+export type DraftStatus = (typeof DRAFT_STATUSES)[number];
+
+export const DRAFT_STATUS_LABELS: Record<DraftStatus, string> = {
+  draft: "Draft",
+  approved: "Approved",
+  sent: "Sent",
+};
+
+/** A pitch email built from the band template for one venue. */
+export interface EmailDraft {
+  id: number;
+  venue_id: number;
+  subject: string;
+  body: string;
+  /** Page Claude used to ground the opening line, if any. */
+  source: string | null;
+  status: DraftStatus;
+  created_at: string;
+}
+
+/** The band's own details, reused in every pitch. */
+export interface BandProfile {
+  band_name: string;
+  signature_name: string;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  video1_url: string | null;
+  video2_url: string | null;
+  epk_url: string | null;
+}
+
 export interface Venue {
   id: number;
   name: string;

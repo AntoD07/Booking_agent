@@ -30,37 +30,81 @@ def _require_api_key(band: Band) -> None:
         )
 
 
-def _fail_stale_runs(db: Session, band_id: int) -> None:
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _fail_stale_runs(db: Session) -> None:
     """A run left "running" by a restart must not lock the button forever."""
-    cutoff = datetime.now(timezone.utc) - enrichment.STALE_RUN_AFTER
-    for run in db.scalars(
-        select(ResearchRun).where(
-            ResearchRun.band_id == band_id, ResearchRun.status == "running"
-        )
-    ):
+    cutoff = _now() - enrichment.STALE_RUN_AFTER
+    changed = False
+    for run in db.scalars(select(ResearchRun).where(ResearchRun.status == "running")):
         started = run.started_at
         if started.tzinfo is None:  # SQLite drops tzinfo
             started = started.replace(tzinfo=timezone.utc)
         if started < cutoff:
             run.status = "failed"
             run.error = "The search was interrupted (server restarted)."
-            run.finished_at = datetime.now(timezone.utc)
-    db.commit()
+            run.note = None
+            run.finished_at = _now()
+            changed = True
+    if changed:
+        db.commit()
 
 
-def _run_research(run_id: int, band_id: int, api_key: str | None) -> None:
-    """Background job: research a batch of the band's venues and record it."""
-    db = SessionLocal()
-    try:
+def fail_running_runs() -> None:
+    """At startup, fail every still-"running" run: a restart killed any job
+    that was in flight, so it can never finish and must not stay "running"."""
+    with SessionLocal() as db:
+        stuck = list(
+            db.scalars(select(ResearchRun).where(ResearchRun.status == "running"))
+        )
+        for run in stuck:
+            run.status = "failed"
+            run.error = "The search was interrupted (server restarted)."
+            run.note = None
+            run.finished_at = _now()
+        if stuck:
+            db.commit()
+            logger.info("failed %d orphaned research run(s) at startup", len(stuck))
+
+
+def _note(run_id: int, message: str) -> None:
+    """Progress update in its own short-lived session, so the multi-minute
+    Claude call never holds a DB connection open — serverless Postgres drops
+    idle ones, and the later completion commit would then fail."""
+    with SessionLocal() as db:
         run = db.get(ResearchRun, run_id)
-        if run is None:
-            return
-
-        def note(message: str) -> None:
+        if run is not None and run.status == "running":
             run.note = message[:300]
             db.commit()
 
-        try:
+
+def _mark_failed(run_id: int, error: str) -> None:
+    with SessionLocal() as db:
+        run = db.get(ResearchRun, run_id)
+        if run is not None:
+            run.status = "failed"
+            run.error = error
+            run.note = None
+            run.finished_at = _now()
+            db.commit()
+
+
+def _run_research(run_id: int, band_id: int, api_key: str | None) -> None:
+    """Background job: research a batch of the band's venues and record it.
+
+    Every database touch uses its own short-lived session, so no connection is
+    held across the long Claude call. Holding one caused the run to strand as
+    "running": the connection was dropped mid-run and the completion commit
+    then failed on it.
+    """
+    try:
+        # 1. Pick the venues and build the payload (short session).
+        with SessionLocal() as db:
+            run = db.get(ResearchRun, run_id)
+            if run is None:
+                return
             venues = enrichment.select_venues(db, band_id)
             if not venues:
                 run.status = "completed"
@@ -68,17 +112,42 @@ def _run_research(run_id: int, band_id: int, api_key: str | None) -> None:
                     "Every venue is either complete or was researched in the "
                     "last two weeks — nothing to do."
                 )
+                run.note = None
+                run.finished_at = _now()
+                db.commit()
                 return
-            note(f"Researching {len(venues)} venues…")
             payload = [
                 enrichment._venue_payload(v, enrichment.missing_fields(v))
                 for v in venues
             ]
-            findings = enrichment.research_batch(payload, progress=note, api_key=api_key)
+            venue_ids = [v.id for v in venues]
+
+        _note(run_id, f"Researching {len(payload)} venues…")
+
+        # 2. The long Claude call — no DB connection held across it.
+        findings = enrichment.research_batch(
+            payload,
+            progress=lambda message: _note(run_id, message),
+            api_key=api_key,
+        )
+
+        # 3. Apply findings and finish (fresh session, fresh connection).
+        with SessionLocal() as db:
+            run = db.get(ResearchRun, run_id)
+            if run is None:
+                return
+            # Scope by band as well as id, so a run only ever writes its own
+            # band's venues even if ids were reused.
+            venues = list(
+                db.scalars(
+                    select(Venue).where(
+                        Venue.band_id == band_id, Venue.id.in_(venue_ids)
+                    )
+                )
+            )
             enrichment.apply_findings(db, run, venues, findings)
             kept = sum(1 for f in run.findings if not f.applied)
             updated = sorted({f.venue_name for f in run.findings if f.applied})
-            run.status = "completed"
             if updated:
                 fields = run.fields_filled
                 lead = (
@@ -93,28 +162,21 @@ def _run_research(run_id: int, band_id: int, api_key: str | None) -> None:
                 if kept
                 else "."
             )
-        except enrichment.DiscoveryError as exc:
-            run.status = "failed"
-            run.error = f"Research failed: {exc}"
-        except anthropic.APITimeoutError:
-            run.status = "failed"
-            run.error = "The search timed out — try again."
-        except anthropic.APIStatusError as exc:
-            run.status = "failed"
-            run.error = f"Claude API error: {exc.message}"
-        except anthropic.APIConnectionError:
-            run.status = "failed"
-            run.error = "Could not reach the Claude API"
-        except Exception as exc:  # noqa: BLE001 — a run must never stay "running"
-            logger.exception("research run %s crashed", run_id)
-            run.status = "failed"
-            run.error = f"Research failed: {exc}"
-        finally:
+            run.status = "completed"
             run.note = None
-            run.finished_at = datetime.now(timezone.utc)
+            run.finished_at = _now()
             db.commit()
-    finally:
-        db.close()
+    except enrichment.DiscoveryError as exc:
+        _mark_failed(run_id, f"Research failed: {exc}")
+    except anthropic.APITimeoutError:
+        _mark_failed(run_id, "The search timed out — try again.")
+    except anthropic.APIStatusError as exc:
+        _mark_failed(run_id, f"Claude API error: {exc.message}")
+    except anthropic.APIConnectionError:
+        _mark_failed(run_id, "Could not reach the Claude API")
+    except Exception as exc:  # noqa: BLE001 — a run must never stay "running"
+        logger.exception("research run %s crashed", run_id)
+        _mark_failed(run_id, f"Research failed: {exc}")
 
 
 def _run_out(run: ResearchRun) -> ResearchRunOut:
@@ -129,7 +191,7 @@ def start_run(
 ) -> ResearchRunOut:
     """Start a Search & fill run, or return the one already running."""
     _require_api_key(band)
-    _fail_stale_runs(db, band.id)
+    _fail_stale_runs(db)
     active = db.scalar(
         select(ResearchRun)
         .where(ResearchRun.band_id == band.id, ResearchRun.status == "running")
@@ -166,6 +228,9 @@ def get_run(
     db: Session = Depends(get_db),
     band: Band = Depends(current_band),
 ) -> ResearchRunOut:
+    # The client polls this; healing a stale run here means a stuck search
+    # recovers on its own, without waiting for the next start.
+    _fail_stale_runs(db)
     run = db.get(ResearchRun, run_id, options=[selectinload(ResearchRun.findings)])
     if run is None or run.band_id != band.id:
         raise HTTPException(status_code=404, detail="Run not found")

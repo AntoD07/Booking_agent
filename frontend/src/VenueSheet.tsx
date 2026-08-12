@@ -7,6 +7,7 @@ import {
   removeAppearance,
   updateVenue,
 } from "./api";
+import DraftPanel from "./DraftPanel";
 import {
   ADDED_BY_OPTIONS,
   STATUS_LABELS,
@@ -126,9 +127,18 @@ interface VenueSheetProps {
   venue: Venue | null; // null → new venue
   onClose: () => void;
   onSaved: () => void;
+  /** Refresh the board without closing the sheet (e.g. a draft moved the card). */
+  onVenueChanged: () => void;
+  onUnauthorized: () => void;
 }
 
-export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps) {
+export default function VenueSheet({
+  venue,
+  onClose,
+  onSaved,
+  onVenueChanged,
+  onUnauthorized,
+}: VenueSheetProps) {
   const [form, setForm] = useState<FormState>(() => initForm(venue));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -542,6 +552,15 @@ export default function VenueSheet({ venue, onClose, onSaved }: VenueSheetProps)
                 </button>
               </div>
             </section>
+          )}
+
+          {venue && (
+            <DraftPanel
+              venueId={venue.id}
+              contactEmail={venue.contact_email}
+              onVenueChanged={onVenueChanged}
+              onUnauthorized={onUnauthorized}
+            />
           )}
 
           {error && <p className="sheet-error">{error}</p>}

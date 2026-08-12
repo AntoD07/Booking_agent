@@ -15,7 +15,9 @@ from app.main import app
 from app.models import Band
 from app.passwords import hash_password
 
-TEST_BAND = "Test Band"
+# Named after our own band so a freshly created profile (which defaults its
+# pitch name to the band's login name) matches the drafting assertions.
+TEST_BAND = "Gipsy Tonic"
 TEST_BAND_PASSWORD = "test-password"
 
 

@@ -8,6 +8,7 @@ import {
   startResearch,
   updateVenue,
 } from "./api";
+import BandProfileSheet from "./BandProfileSheet";
 import Board from "./Board";
 import Login from "./Login";
 import ManualScan from "./ManualScan";
@@ -47,6 +48,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   // Venue being edited, "new" for the add-venue form, null when the board is shown.
   const [active, setActive] = useState<Venue | "new" | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
   // The Search & fill dialog and the run it is following. Polling lives here,
   // not in the dialog, so a completed run still reaches the user (a toast)
   // even after they close the box while it is still working.
@@ -215,6 +217,7 @@ export default function App() {
         onAddVenue={() => setActive("new")}
         onOpenScan={() => setView("scan")}
         onOpenResearch={openResearch}
+        onOpenProfile={() => setProfileOpen(true)}
         onOpenVenue={(venue) => setActive(venue)}
         onStatusChange={async (venue: Venue, status: VenueStatus) => {
           try {
@@ -251,6 +254,14 @@ export default function App() {
             setActive(null);
             loadVenues();
           }}
+          onVenueChanged={loadVenues}
+          onUnauthorized={() => setSession("anonymous")}
+        />
+      )}
+      {profileOpen && (
+        <BandProfileSheet
+          onClose={() => setProfileOpen(false)}
+          onUnauthorized={() => setSession("anonymous")}
         />
       )}
       {toast && (

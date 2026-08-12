@@ -302,6 +302,64 @@ def test_clear_stale_dates_targets_only_claude_filled(auth_client, band):
         assert f.application_deadline == date(2027, 1, 1)  # untouched
 
 
+def test_overlong_value_is_capped_not_crashed(band):
+    long_method = "Curated booking via the resort; " + "detail " * 60  # >200 chars
+    assert len(long_method) > 200
+    with SessionLocal() as db:
+        venue = _make_venue(db, band.id, name="Enghien Jazz")
+        _apply(
+            db,
+            band.id,
+            venue,
+            [
+                {
+                    "venue_id": venue.id,
+                    "field": "application_method",
+                    "value": long_method,
+                    "confidence": "medium",
+                    "source": None,
+                }
+            ],
+        )
+        refreshed = db.get(Venue, venue.id)
+        assert refreshed.application_method is not None
+        assert len(refreshed.application_method) <= 200
+        # The stored finding reflects the capped value, so it fits its column too.
+        stored = db.scalars(select(ResearchFinding)).all()
+        assert stored and len(stored[0].new_value) <= 200
+
+
+def test_orphaned_running_run_failed_at_startup(band):
+    from app.routers import research
+
+    with SessionLocal() as db:
+        run = ResearchRun(status="running", note="mid-search", band_id=band.id)
+        db.add(run)
+        db.commit()
+        run_id = run.id
+    research.fail_running_runs()
+    with SessionLocal() as db:
+        recovered = db.get(ResearchRun, run_id)
+        assert recovered.status == "failed"
+        assert recovered.note is None
+        assert "interrupted" in recovered.error
+
+
+def test_poll_recovers_a_stale_run(auth_client, band):
+    with SessionLocal() as db:
+        stale = ResearchRun(
+            status="running",
+            band_id=band.id,
+            started_at=datetime.now(timezone.utc) - timedelta(hours=1),
+        )
+        db.add(stale)
+        db.commit()
+        stale_id = stale.id
+    # Simply polling the run heals it — no new search needed.
+    body = auth_client.get(f"/api/research/runs/{stale_id}").json()
+    assert body["status"] == "failed"
+
+
 def test_runs_list_returns_findings(auth_client, band, monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     with SessionLocal() as db:

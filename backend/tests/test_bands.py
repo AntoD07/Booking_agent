@@ -60,3 +60,25 @@ def test_same_venue_name_allowed_across_bands(client):
     assert b.post("/api/venues", json={"name": "New Morning"}).status_code == 201
     assert len(a.get("/api/venues").json()) == 1
     assert len(b.get("/api/venues").json()) == 1
+
+
+def test_profiles_and_drafts_are_per_band(client, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)  # placeholder hook, no call
+    _register("Band A", "pw-a")
+    _register("Band B", "pw-b")
+    a = _login("Band A", "pw-a")
+    b = _login("Band B", "pw-b")
+
+    # Each band's profile defaults to its own name and edits independently.
+    assert a.get("/api/band-profile").json()["band_name"] == "Band A"
+    assert b.get("/api/band-profile").json()["band_name"] == "Band B"
+    a.put("/api/band-profile", json={"signature_name": "Alice"})
+    assert b.get("/api/band-profile").json()["signature_name"] != "Alice"
+
+    # A draft belongs to the band that made it; the other band can't see it.
+    venue_a = a.post("/api/venues", json={"name": "A Venue"}).json()
+    draft = a.post(f"/api/venues/{venue_a['id']}/drafts").json()
+    assert b.get(f"/api/venues/{venue_a['id']}/drafts").status_code == 404
+    assert b.patch(f"/api/drafts/{draft['id']}", json={"body": "x"}).status_code == 404
+    assert b.delete(f"/api/drafts/{draft['id']}").status_code == 404
+    assert a.get(f"/api/venues/{venue_a['id']}/drafts").json()[0]["id"] == draft["id"]

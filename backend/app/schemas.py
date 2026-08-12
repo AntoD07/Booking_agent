@@ -130,6 +130,7 @@ class EmailDraftOut(BaseModel):
     venue_id: int
     subject: str
     body: str
+    source: str | None
     status: DraftStatus
     created_at: datetime
 

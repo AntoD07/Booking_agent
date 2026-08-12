@@ -39,6 +39,7 @@ export default function DraftPanel({
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -88,14 +89,17 @@ export default function DraftPanel({
 
   async function generate() {
     setBusy(true);
+    setGenerating(true);
     setError(null);
     try {
       const draft = await generateDraft(venueId);
       setDrafts((current) => [draft, ...current]);
       select(draft);
       setBusy(false);
+      setGenerating(false);
       onVenueChanged();
     } catch (err) {
+      setGenerating(false);
       fail(err);
     }
   }
@@ -218,6 +222,15 @@ export default function DraftPanel({
                 venue’s programme — then edit freely. The app never sends;
                 copy the text into your mail client to send it yourself.
               </p>
+              {active.source && (
+                <p className="draft-source">
+                  Opening line grounded in{" "}
+                  <a href={active.source} target="_blank" rel="noreferrer">
+                    this source
+                  </a>{" "}
+                  — confirm it before sending.
+                </p>
+              )}
               <label className="field field-wide">
                 <span>Subject</span>
                 <input
@@ -273,11 +286,13 @@ export default function DraftPanel({
               disabled={busy}
               onClick={generate}
             >
-              {busy
-                ? "Working…"
-                : drafts.length === 0
-                  ? "Draft email"
-                  : "Draft another"}
+              {generating
+                ? "Searching their line-up…"
+                : busy
+                  ? "Working…"
+                  : drafts.length === 0
+                    ? "Draft email"
+                    : "Draft another"}
             </button>
             {active && (
               <>

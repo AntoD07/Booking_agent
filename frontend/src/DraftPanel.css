@@ -71,6 +71,12 @@
   max-width: 60ch;
 }
 
+.draft-source {
+  margin: -0.3rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
 .draft-body {
   font-family: "Source Sans 3", system-ui, sans-serif;
   line-height: 1.6;

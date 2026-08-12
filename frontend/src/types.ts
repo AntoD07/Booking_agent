@@ -139,6 +139,8 @@ export interface EmailDraft {
   venue_id: number;
   subject: string;
   body: string;
+  /** Page Claude used to ground the opening line, if any. */
+  source: string | null;
   status: DraftStatus;
   created_at: string;
 }

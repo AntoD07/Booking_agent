@@ -65,6 +65,8 @@ def test_generate_french_draft_moves_card_to_draft_ready(auth_client, monkeypatc
     assert "À COMPLÉTER" in draft["body"]
     assert "lors de votre édition 2027" in draft["body"]
     assert draft["status"] == "draft"
+    # No key → no web search → no source.
+    assert draft["source"] is None
 
     with SessionLocal() as db:
         assert db.get(Venue, vid).status == VenueStatus.draft_ready
@@ -102,18 +104,23 @@ def test_generate_uses_profile_links_and_greeting(auth_client, monkeypatch):
     assert "booking@gipsytonic.com · gipsytonic.com" in body
 
 
-def test_generate_personalisation_from_claude_is_used(auth_client, monkeypatch):
+def test_generate_personalisation_and_source_from_claude(auth_client, monkeypatch):
     monkeypatch.setattr(
         drafting,
-        "_generate_personalisation",
-        lambda venue, language: "J'ai vu que vous aviez programmé le Rosenberg Trio.",
+        "_research_personalisation",
+        lambda venue, language: (
+            "J'ai vu que vous aviez programmé le Rosenberg Trio.",
+            "https://django-fest.example/2026-lineup",
+        ),
     )
     with SessionLocal() as db:
         venue = _make_venue(db, name="Django Fest")
         vid = venue.id
-    body = auth_client.post(f"/api/venues/{vid}/drafts").json()["body"]
-    assert "Rosenberg Trio" in body
-    assert "À COMPLÉTER" not in body
+    draft = auth_client.post(f"/api/venues/{vid}/drafts").json()
+    assert "Rosenberg Trio" in draft["body"]
+    assert "À COMPLÉTER" not in draft["body"]
+    # The page Claude grounded the opening line in is stored on the draft.
+    assert draft["source"] == "https://django-fest.example/2026-lineup"
 
 
 def test_generate_unknown_venue_404(auth_client, monkeypatch):

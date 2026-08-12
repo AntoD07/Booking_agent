@@ -74,6 +74,17 @@ function FindingsList({ findings }: { findings: ResearchFinding[] }) {
                       : "Medium confidence — derived from past editions"
                   }
                 />
+                {finding.source && (
+                  <a
+                    className="research-source"
+                    href={finding.source}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Open the page this finding came from"
+                  >
+                    source
+                  </a>
+                )}
                 <span className="research-field">
                   {FIELD_LABELS[finding.field] ?? finding.field}
                 </span>
@@ -95,16 +106,6 @@ function FindingsList({ findings }: { findings: ResearchFinding[] }) {
                   >
                     kept yours
                   </span>
-                )}
-                {finding.source && (
-                  <a
-                    className="research-source"
-                    href={finding.source}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    source
-                  </a>
                 )}
               </li>
             ))}

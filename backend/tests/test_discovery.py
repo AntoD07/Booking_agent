@@ -349,7 +349,9 @@ def test_accept_with_scan_source_and_event_dates(auth_client):
 
 def test_ping_reports_connection(auth_client, api_key, monkeypatch):
     monkeypatch.setattr(
-        discovery, "ping", lambda: {"ok": True, "model": "claude-opus-4-8", "seconds": 1.2}
+        discovery,
+        "ping",
+        lambda *a, **kw: {"ok": True, "model": "claude-opus-4-8", "seconds": 1.2},
     )
     response = auth_client.get("/api/discovery/ping")
     assert response.status_code == 200

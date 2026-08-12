@@ -277,7 +277,9 @@ def _appearances_text(venue: Venue, language: str) -> str:
     return "aucun connu" if language == "fr" else "none on record"
 
 
-def _research_personalisation(venue: Venue, language: str) -> tuple[str, str | None]:
+def _research_personalisation(
+    venue: Venue, language: str, api_key: str | None = None
+) -> tuple[str, str | None]:
     """Web-search the venue's programme for the hook and its source.
 
     Returns (personalisation, source_url). Falls back to the bracketed
@@ -286,7 +288,8 @@ def _research_personalisation(venue: Venue, language: str) -> tuple[str, str | N
     since the rest of the email is fixed.
     """
     placeholder = _PLACEHOLDERS[language]["personalisation"]
-    if not anthropic_api_key():
+    key = api_key or anthropic_api_key()
+    if not key:
         return placeholder, None
     place = ", ".join(part for part in (venue.city, venue.country) if part)
     prompt = _HOOK_PROMPT.format(
@@ -299,7 +302,7 @@ def _research_personalisation(venue: Venue, language: str) -> tuple[str, str | N
         placeholder=placeholder,
     )
     client = anthropic.Anthropic(
-        api_key=anthropic_api_key(),
+        api_key=key,
         timeout=REQUEST_TIMEOUT_SECONDS,
         max_retries=1,
     )
@@ -331,7 +334,9 @@ def _research_personalisation(venue: Venue, language: str) -> tuple[str, str | N
     return value.strip(), source
 
 
-def build_draft(venue: Venue, profile: BandProfile) -> tuple[str, str, str | None]:
+def build_draft(
+    venue: Venue, profile: BandProfile, api_key: str | None = None
+) -> tuple[str, str, str | None]:
     """Return (subject, body, source) for this venue's application email.
 
     `source` is the page Claude used to ground the opening line, or None.
@@ -348,7 +353,7 @@ def build_draft(venue: Venue, profile: BandProfile) -> tuple[str, str, str | Non
         subject = f"{band_name} — Application {venue.name} {year} (album release)"
         template = _ENGLISH_BODY
 
-    personalisation, source = _research_personalisation(venue, language)
+    personalisation, source = _research_personalisation(venue, language, api_key)
     body = template.format(
         greeting=_greeting(venue, language),
         personalisation=personalisation,

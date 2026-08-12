@@ -13,6 +13,7 @@ from pathlib import Path
 
 from sqlalchemy import select
 
+from app.bands import get_or_create_seed_band
 from app.db import SessionLocal
 from app.models import Artist, Venue, VenueStatus, VenueType
 
@@ -22,19 +23,31 @@ DATA_FILE = Path(__file__).parent / "data" / "notion_import.json"
 def run() -> None:
     payload = json.loads(DATA_FILE.read_text(encoding="utf-8"))
     with SessionLocal() as db:
+        # The pre-existing pipeline belongs to our own band; scope every
+        # lookup and insert to it so other bands' data is never touched.
+        band = get_or_create_seed_band(db)
         removed = 0
-        for venue in db.scalars(select(Venue).where(Venue.source == "seed")):
+        for venue in db.scalars(
+            select(Venue).where(Venue.band_id == band.id, Venue.source == "seed")
+        ):
             db.delete(venue)
             removed += 1
         for artist in db.scalars(
-            select(Artist).where(Artist.notes == "Seed reference artist.")
+            select(Artist).where(
+                Artist.band_id == band.id,
+                Artist.notes == "Seed reference artist.",
+            )
         ):
             db.delete(artist)
             removed += 1
 
         added = backfilled = 0
         for row in payload["venues"]:
-            existing = db.scalar(select(Venue).where(Venue.name == row["name"]))
+            existing = db.scalar(
+                select(Venue).where(
+                    Venue.band_id == band.id, Venue.name == row["name"]
+                )
+            )
             if existing is None:
                 data = dict(row)
                 data["type"] = VenueType(data["type"])
@@ -43,7 +56,7 @@ def run() -> None:
                     data["application_deadline"] = date.fromisoformat(
                         data["application_deadline"]
                     )
-                db.add(Venue(**data))
+                db.add(Venue(**data, band_id=band.id))
                 added += 1
             elif row.get("application_deadline") and existing.application_deadline is None:
                 # Deadlines were added to the dataset after the first deploys:
@@ -59,8 +72,13 @@ def run() -> None:
                 existing.field_confidence = confidence
                 backfilled += 1
         for row in payload["artists"]:
-            if db.scalar(select(Artist).where(Artist.name == row["name"])) is None:
-                db.add(Artist(**row))
+            existing_artist = db.scalar(
+                select(Artist).where(
+                    Artist.band_id == band.id, Artist.name == row["name"]
+                )
+            )
+            if existing_artist is None:
+                db.add(Artist(**row, band_id=band.id))
                 added += 1
 
         db.commit()

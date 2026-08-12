@@ -2,6 +2,7 @@ from datetime import date
 
 from sqlalchemy import select
 
+from app.bands import get_or_create_seed_band
 from app.db import SessionLocal
 from app.import_notion import run as run_import
 from app.models import Artist, Venue, VenueStatus, VenueType
@@ -17,8 +18,15 @@ def _counts():
 
 def test_import_populates_and_removes_placeholders(client):
     with SessionLocal() as db:
-        db.add(Venue(name="Placeholder", source="seed"))
-        db.add(Artist(name="Placeholder", notes="Seed reference artist."))
+        band = get_or_create_seed_band(db)
+        db.add(Venue(name="Placeholder", source="seed", band_id=band.id))
+        db.add(
+            Artist(
+                name="Placeholder",
+                notes="Seed reference artist.",
+                band_id=band.id,
+            )
+        )
         db.commit()
 
     run_import()

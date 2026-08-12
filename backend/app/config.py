@@ -28,6 +28,13 @@ def anthropic_api_key() -> str | None:
     return os.environ.get("ANTHROPIC_API_KEY") or None
 
 
+def seed_band_name() -> str:
+    """Name of the band that owns data created before multi-band access —
+    the existing venues/artists, and the rows the Notion import re-adds on
+    every deploy. Overridable via env, defaults to our own band."""
+    return os.environ.get("SEED_BAND_NAME") or "Gipsy Tonic"
+
+
 def cookie_secure() -> bool:
     # Secure cookies on by default; opt out for local http development.
     return os.environ.get("COOKIE_SECURE", "true").lower() != "false"

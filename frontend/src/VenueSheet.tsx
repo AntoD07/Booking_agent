@@ -92,6 +92,7 @@ function initForm(venue: Venue | null): FormState {
 function toPayload(
   form: FormState,
   confidence: Record<string, string>,
+  sources: Record<string, string>,
 ): VenueInput {
   const text = (value: string) => value.trim() || null;
   const score = form.fit_score.trim();
@@ -120,6 +121,7 @@ function toPayload(
     source: text(form.source),
     added_by: text(form.added_by),
     field_confidence: Object.keys(confidence).length ? confidence : null,
+    field_sources: Object.keys(sources).length ? sources : null,
   };
 }
 
@@ -153,6 +155,11 @@ export default function VenueSheet({
   const [confidence, setConfidence] = useState<Record<string, string>>(
     venue?.field_confidence ?? {},
   );
+  // The page Claude found each value on, parallel to confidence. Cleared with
+  // the marker when the field is edited, so a stale source never lingers.
+  const [sources, setSources] = useState<Record<string, string>>(
+    venue?.field_sources ?? {},
+  );
 
   function set<K extends keyof FormState>(field: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -168,16 +175,40 @@ export default function VenueSheet({
         return next;
       });
     }
+    if (sources[confKey]) {
+      setSources((current) => {
+        const next = { ...current };
+        delete next[confKey];
+        return next;
+      });
+    }
   }
 
   function confidenceDot(field: string) {
     const level = confidence[field];
-    if (!level) return null;
+    const source = sources[field];
+    if (!level && !source) return null;
     return (
-      <span
-        className={`conf-dot conf-${level}`}
-        title={`Filled by Claude — ${level} confidence. Edit to confirm.`}
-      />
+      <>
+        {level && (
+          <span
+            className={`conf-dot conf-${level}`}
+            title={`Filled by Claude — ${level} confidence. Edit to confirm.`}
+          />
+        )}
+        {source && (
+          <a
+            className="field-source"
+            href={source}
+            target="_blank"
+            rel="noreferrer"
+            title="Open the page Claude found this on"
+            onClick={(e) => e.stopPropagation()}
+          >
+            source
+          </a>
+        )}
+      </>
     );
   }
 
@@ -195,7 +226,7 @@ export default function VenueSheet({
     setBusy(true);
     setError(null);
     try {
-      const payload = toPayload(form, confidence);
+      const payload = toPayload(form, confidence, sources);
       if (venue) {
         await updateVenue(venue.id, payload);
       } else {

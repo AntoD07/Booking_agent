@@ -99,6 +99,10 @@ def test_run_applies_findings_under_confidence_rules(auth_client, monkeypatch):
         filled = db.get(Venue, ids["empty"])
         assert filled.contact_email == "booking@jazzaulac.example"
         assert filled.field_confidence["contact_email"] == "high"
+        # The finding's source is stored per field for the sheet's dot link.
+        assert filled.field_sources["contact_email"] == (
+            "https://jazzaulac.example/contact"
+        )
         assert "New artistic director" in filled.research_notes
         assert filled.last_researched is not None
 

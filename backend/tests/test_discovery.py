@@ -381,7 +381,7 @@ I researched the venue. Here is the card.
 
 ```json
 {
-  "region": {"value": "Occitanie", "confidence": "high"},
+  "region": {"value": "Occitanie", "confidence": "high", "source": "https://jazzinmarciac.com/about"},
   "website": {"value": "https://www.jazzinmarciac.com", "confidence": "high"},
   "booking_contact": {"value": "Programming director", "confidence": "medium"},
   "contact_email": {"value": "prog@jazzinmarciac.com", "confidence": "medium"},
@@ -396,14 +396,16 @@ I researched the venue. Here is the card.
 
 def test_parse_enrichment():
     found = discovery._parse_enrichment(ENRICH_REPLY)
-    assert found["region"] == ("Occitanie", "high")
+    # (value, confidence, source) — source is null when Claude omits it.
+    assert found["region"] == ("Occitanie", "high", "https://jazzinmarciac.com/about")
+    assert found["website"][2] is None
     # Unknown confidence levels are coerced to low, null fields dropped
     assert found["application_url"][1] == "low"
     assert "application_method" not in found
     # The deadline is parsed into a real date
     from datetime import date
 
-    assert found["application_deadline"] == (date(2027, 1, 15), "medium")
+    assert found["application_deadline"] == (date(2027, 1, 15), "medium", None)
 
 
 def test_accept_enriches_empty_fields_only(auth_client, api_key, monkeypatch):
@@ -413,11 +415,11 @@ def test_accept_enriches_empty_fields_only(auth_client, api_key, monkeypatch):
         discovery,
         "run_enrichment",
         lambda *a, **kw: {
-            "region": ("Occitanie", "high"),
-            "website": ("https://wrong.example", "high"),
-            "contact_email": ("prog@jazzinmarciac.com", "medium"),
-            "application_deadline": (date(2027, 1, 15), "medium"),
-            "research_notes": ("Major jazz festival with a swing stage.", "high"),
+            "region": ("Occitanie", "high", "https://jazzinmarciac.com/about"),
+            "website": ("https://wrong.example", "high", None),
+            "contact_email": ("prog@jazzinmarciac.com", "medium", None),
+            "application_deadline": (date(2027, 1, 15), "medium", None),
+            "research_notes": ("Major jazz festival with a swing stage.", "high", None),
         },
     )
     created = auth_client.post(
@@ -440,6 +442,9 @@ def test_accept_enriches_empty_fields_only(auth_client, api_key, monkeypatch):
     assert venue["application_deadline"] == "2027-01-15"
     assert venue["field_confidence"]["region"] == "high"
     assert venue["field_confidence"]["contact_email"] == "medium"
+    # The source Claude reported is stored alongside the confidence.
+    assert venue["field_sources"]["region"] == "https://jazzinmarciac.com/about"
+    assert "contact_email" not in venue["field_sources"]  # no source reported
     # The suggestion's website was NOT overwritten
     assert venue["website"] == "https://www.jazzinmarciac.com"
     assert "website" not in venue["field_confidence"]

@@ -105,9 +105,10 @@ Find these fields:
 
 End your reply with ONLY a JSON object inside a ```json code fence. Map
 each key above to null, or to {{"value": ..., "confidence": "high" |
-"medium" | "low"}} — confidence is how sure you are the information is
-current and correct. Use null when you found nothing reliable. Never
-guess or invent contact details.
+"medium" | "low", "source": ...}} — confidence is how sure you are the
+information is current and correct, and "source" is the URL of the page you
+found the value on (or null). Use null for the whole field when you found
+nothing reliable. Never guess or invent contact details.
 """
 
 # Venue fields enrichment may fill (string-valued; the deadline is a date).
@@ -305,7 +306,7 @@ def run_enrichment(
     website: str | None = None,
     progress: Progress | None = None,
 ) -> dict[str, tuple]:
-    """Research one venue and return {field: (value, confidence)}."""
+    """Research one venue and return {field: (value, confidence, source)}."""
     place = ", ".join(part for part in (city, country) if part)
     prompt = _ENRICH_PROMPT.format(
         name=name,
@@ -339,7 +340,10 @@ def _parse_enrichment(text: str) -> dict[str, tuple]:
                 value = date.fromisoformat(value)
             except ValueError:
                 continue
-        found[field] = (value, confidence)
+        source = _clean(entry.get("source"))
+        if source and source.lower() == "null":
+            source = None
+        found[field] = (value, confidence, source)
     return found
 
 

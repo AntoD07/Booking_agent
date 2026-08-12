@@ -166,6 +166,18 @@ def missing_fields(venue: Venue, today: date | None = None) -> list[str]:
     return missing
 
 
+def _record_source(sources: dict, field: str, source: str | None) -> None:
+    """Store the source for a field just filled, or drop a stale one.
+
+    A refresh without a source shouldn't leave the previous source pointing
+    at a value that changed, so an empty source clears the entry.
+    """
+    if source:
+        sources[field] = source
+    else:
+        sources.pop(field, None)
+
+
 def _venue_payload(venue: Venue, missing: list[str]) -> dict:
     return {
         "id": venue.id,
@@ -323,6 +335,7 @@ def apply_findings(
             applied=True,
         )
         marks = dict(venue.field_confidence or {})
+        sources = dict(venue.field_sources or {})
 
         if field == "note":
             stamp = now.strftime("%b %Y")
@@ -343,6 +356,7 @@ def apply_findings(
             else:
                 venue.application_deadline = parsed_deadline
                 marks[field] = confidence
+                _record_source(sources, field, source)
                 run.fields_filled += 1
         else:
             max_len = _FIELD_MAX_LEN.get(field)
@@ -358,9 +372,11 @@ def apply_findings(
             else:
                 setattr(venue, field, value)
                 marks[field] = confidence
+                _record_source(sources, field, source)
                 run.fields_filled += 1
 
         venue.field_confidence = marks or None
+        venue.field_sources = sources or None
         db.add(finding)
 
     for venue in venues:

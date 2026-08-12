@@ -1,0 +1,155 @@
+.draft-panel {
+  border-top: 1px solid var(--line);
+  padding-top: 1.5rem;
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.draft-empty {
+  color: var(--ink-soft);
+  margin: 0;
+  max-width: 46ch;
+}
+
+.draft-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.draft-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.draft-tab--active {
+  background: var(--paper-raised);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.draft-tab-status {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.draft-status--draft {
+  color: var(--ink-soft);
+}
+.draft-status--approved {
+  color: var(--accent);
+}
+.draft-status--sent {
+  color: #3f6b3f;
+}
+
+.draft-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.draft-verify {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: 3px;
+  color: var(--ink);
+  font-size: 0.88rem;
+  max-width: 60ch;
+}
+
+.draft-body {
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  line-height: 1.6;
+  resize: vertical;
+  min-height: 18rem;
+}
+
+.draft-status-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.draft-status-label {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  margin-right: auto;
+}
+
+.draft-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.draft-generate {
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: var(--paper-raised);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.draft-generate:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.draft-btn {
+  padding: 0.5rem 0.9rem;
+  background: var(--paper-raised);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.draft-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.draft-open-email {
+  padding: 0.5rem 0.9rem;
+  background: var(--paper-raised);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.draft-delete {
+  padding: 0.5rem 0.9rem;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  margin-left: auto;
+}
+
+.draft-delete:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

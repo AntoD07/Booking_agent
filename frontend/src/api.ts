@@ -1,5 +1,8 @@
 import type {
   Artist,
+  BandProfile,
+  DraftStatus,
+  EmailDraft,
   ResearchRun,
   Suggestion,
   Venue,
@@ -184,4 +187,42 @@ export function removeAppearance(
   return request(`/api/venues/${venueId}/artists/${artistId}`, {
     method: "DELETE",
   });
+}
+
+// --- Email drafting -------------------------------------------------------
+
+export function fetchBandProfile(): Promise<BandProfile> {
+  return request("/api/band-profile");
+}
+
+export function updateBandProfile(
+  patch: Partial<BandProfile>,
+): Promise<BandProfile> {
+  return request("/api/band-profile", {
+    method: "PUT",
+    body: JSON.stringify(patch),
+  });
+}
+
+export function fetchDrafts(venueId: number): Promise<EmailDraft[]> {
+  return request(`/api/venues/${venueId}/drafts`);
+}
+
+/** Draft a pitch email from the band template (may take a few seconds). */
+export function generateDraft(venueId: number): Promise<EmailDraft> {
+  return request(`/api/venues/${venueId}/drafts`, { method: "POST" });
+}
+
+export function updateDraft(
+  draftId: number,
+  patch: { subject?: string; body?: string; status?: DraftStatus },
+): Promise<EmailDraft> {
+  return request(`/api/drafts/${draftId}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export function deleteDraft(draftId: number): Promise<void> {
+  return request(`/api/drafts/${draftId}`, { method: "DELETE" });
 }

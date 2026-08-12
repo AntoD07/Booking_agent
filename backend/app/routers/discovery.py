@@ -244,8 +244,9 @@ def _run_enrichment_job(venue_id: int) -> None:
             return
         db.refresh(venue)  # pick up human edits made while researching
         confidence = dict(venue.field_confidence or {})
+        sources = dict(venue.field_sources or {})
         filled = []
-        for field, (value, level) in found.items():
+        for field, (value, level, source) in found.items():
             if field == "research_notes":
                 addition = f"Claude research:\n{value}"
                 venue.research_notes = (
@@ -258,8 +259,11 @@ def _run_enrichment_job(venue_id: int) -> None:
             else:
                 continue  # already filled by a human or the suggestion
             confidence[field] = level
+            if source:
+                sources[field] = source
             filled.append(field)
         venue.field_confidence = confidence
+        venue.field_sources = sources or None
         db.commit()
         logger.info(
             "enrichment: venue %s filled: %s", venue_id, ", ".join(filled) or "nothing"

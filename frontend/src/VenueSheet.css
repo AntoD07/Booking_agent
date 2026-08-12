@@ -109,6 +109,15 @@
   background: #b8862e;
 }
 
+/* Link to the page Claude found a field's value on, next to its dot. */
+.field-source {
+  margin-left: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--accent);
+  text-decoration: underline;
+  vertical-align: baseline;
+}
+
 .field input,
 .field select,
 .field textarea {

@@ -69,6 +69,8 @@ export interface VenueInput {
   added_by: string | null;
   /** Per-field research confidence for values filled by Claude. */
   field_confidence: Record<string, string> | null;
+  /** Per-field source URL for values filled by Claude, parallel to confidence. */
+  field_sources: Record<string, string> | null;
 }
 
 /** Known team members for the "Added by" picker; extend as the team grows. */
@@ -179,5 +181,6 @@ export interface Venue {
   source: string | null;
   added_by: string | null;
   field_confidence: Record<string, string> | null;
+  field_sources: Record<string, string> | null;
   artists: VenueArtistAppearance[];
 }

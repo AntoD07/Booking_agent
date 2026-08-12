@@ -62,6 +62,10 @@ class Venue(Base):
     # Per-field research confidence for values filled by Claude,
     # e.g. {"contact_email": "high"}. Cleared per field when a human edits it.
     field_confidence: Mapped[dict | None] = mapped_column(JSON)
+    # Per-field source URL for values filled by Claude, parallel to
+    # field_confidence, e.g. {"contact_email": "https://…"}. Cleared per field
+    # when a human edits it; only set when the research reported a source.
+    field_sources: Mapped[dict | None] = mapped_column(JSON)
     # When "Search & fill" last researched this venue; recently researched
     # venues are skipped so repeated runs move through the whole pipeline.
     last_researched: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

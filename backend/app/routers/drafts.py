@@ -111,14 +111,14 @@ def generate_draft(venue_id: int, db: Session = Depends(get_db)) -> EmailDraft:
     venue = _get_venue(db, venue_id)
     profile = _get_profile(db)
     try:
-        subject, body = drafting.build_draft(venue, profile)
+        subject, body, source = drafting.build_draft(venue, profile)
     except anthropic.APITimeoutError:
         raise HTTPException(status_code=504, detail="Drafting timed out — try again.")
     except anthropic.APIStatusError as exc:
         raise HTTPException(status_code=502, detail=f"Claude API error: {exc.message}")
     except anthropic.APIConnectionError:
         raise HTTPException(status_code=502, detail="Could not reach the Claude API")
-    draft = EmailDraft(venue_id=venue.id, subject=subject, body=body)
+    draft = EmailDraft(venue_id=venue.id, subject=subject, body=body, source=source)
     db.add(draft)
     if venue.status in _PRE_DRAFT:
         venue.status = VenueStatus.draft_ready

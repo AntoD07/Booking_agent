@@ -120,6 +120,8 @@ class EmailDraft(Base):
     venue_id: Mapped[int] = mapped_column(ForeignKey("venues.id", ondelete="CASCADE"))
     subject: Mapped[str] = mapped_column(String(300))
     body: Mapped[str] = mapped_column(Text)
+    # Page Claude used to ground the opening personalisation line, if any.
+    source: Mapped[str | None] = mapped_column(String(500))
     status: Mapped[DraftStatus] = mapped_column(
         Enum(DraftStatus, native_enum=False, length=20), default=DraftStatus.draft
     )

@@ -10,21 +10,33 @@ is sent (the app never sends email itself):
 
 The greeting, subject, and signature are filled deterministically from the
 venue and the band profile. The personalisation is written by Claude when an
-API key is configured (grounded in the reference artists we already track for
-the venue), otherwise it is left as a clearly bracketed placeholder to fill in
-by hand. Either way it must be checked before sending.
+API key is configured — Claude web-searches the venue's recent programme to
+name a real artist it has booked and returns the page that documents it — and
+falls back to a clearly bracketed placeholder when there is no key or nothing
+verifiable turns up. Either way it must be checked before sending.
 """
 
 import logging
 import re
+import time
 
 import anthropic
 
 from app.config import anthropic_api_key
-from app.discovery import DISCOVERY_MODEL, _extract_json_object
+from app.discovery import (
+    MAX_CONTINUATIONS,
+    REQUEST_TIMEOUT_SECONDS,
+    DiscoveryError,
+    _create_message,
+    _extract_json_object,
+)
 from app.models import BandProfile, Venue, VenueType
 
 logger = logging.getLogger(__name__)
+
+# Drafting one hook is a single-venue lookup, so keep the whole web-search
+# turn short — it runs inside the request, not as a background job.
+DRAFT_MAX_SECONDS = 90.0
 
 # The season we are booking; used for the subject and the default date line
 # when the venue carries no more specific year. Bump when the season rolls over.
@@ -159,24 +171,29 @@ We are the gypsy jazz quartet Gipsy Tonic, writing a booking email to the \
 venue below for our 2027 season. Write ONLY the opening personalisation line \
 of that email — one or two sentences, in {language_name}.
 
-It must name a real artist from this venue's own programming and connect it to \
-the spirit of what we do (gypsy jazz meets acoustic hard bop). Ground it in \
-the facts below; never invent an artist or an edition.
+It must name a REAL artist this venue has actually programmed (ideally in the \
+last few seasons) and connect that to the spirit of what we do (gypsy jazz \
+meeting acoustic hard bop). Use web search to check the venue's recent \
+programme or line-up and find a concrete, verifiable name; you may also use \
+the reference artists we already know played here.
 
 Venue: {name}{place_clause} ({venue_type})
-Reference artists we know played here: {appearances}
+Reference artists we already know played here: {appearances}
 Our research notes on the venue: {notes}
 
 Rules:
-- Base the line on one of the "reference artists we know played here" when the \
-list is not empty — that is verified information.
-- If that list is empty and the notes name no artist this venue actually \
-programmed, do NOT guess: reply with the exact placeholder \
-"{placeholder}" instead.
+- Ground the line in a real, checkable appearance — never invent an artist or \
+an edition.
+- If, after searching, you cannot verify any artist this venue programmed, do \
+NOT guess: set "personalisation" to exactly "{placeholder}" and "source" to null.
 - Warm and specific, not flattering filler. No greeting, no sign-off — just \
 the one or two sentences.
 
-Reply with ONLY a JSON object inside a ```json code fence: {{"personalisation": "..."}}
+End your reply with ONLY a JSON object inside a ```json code fence, with \
+exactly these keys:
+- "personalisation": the line, in {language_name} (string)
+- "source": the URL of the page documenting that artist's appearance or \
+programming at this venue, or null
 """
 
 
@@ -260,11 +277,17 @@ def _appearances_text(venue: Venue, language: str) -> str:
     return "aucun connu" if language == "fr" else "none on record"
 
 
-def _generate_personalisation(venue: Venue, language: str) -> str:
-    """Ask Claude for the hook; fall back to a placeholder without a key."""
+def _research_personalisation(venue: Venue, language: str) -> tuple[str, str | None]:
+    """Web-search the venue's programme for the hook and its source.
+
+    Returns (personalisation, source_url). Falls back to the bracketed
+    placeholder (and no source) without a key, or if the search turns up
+    nothing verifiable or errors — a hook problem must never sink the draft,
+    since the rest of the email is fixed.
+    """
     placeholder = _PLACEHOLDERS[language]["personalisation"]
     if not anthropic_api_key():
-        return placeholder
+        return placeholder, None
     place = ", ".join(part for part in (venue.city, venue.country) if part)
     prompt = _HOOK_PROMPT.format(
         language_name="French" if language == "fr" else "English",
@@ -276,25 +299,43 @@ def _generate_personalisation(venue: Venue, language: str) -> str:
         placeholder=placeholder,
     )
     client = anthropic.Anthropic(
-        api_key=anthropic_api_key(), timeout=60.0, max_retries=1
+        api_key=anthropic_api_key(),
+        timeout=REQUEST_TIMEOUT_SECONDS,
+        max_retries=1,
     )
-    response = client.messages.create(
-        model=DISCOVERY_MODEL,
-        max_tokens=400,
-        messages=[{"role": "user", "content": prompt}],
-    )
+    deadline = time.monotonic() + DRAFT_MAX_SECONDS
+    messages: list = [{"role": "user", "content": prompt}]
+    try:
+        response = _create_message(client, messages, None, deadline)
+        for _ in range(MAX_CONTINUATIONS):
+            if response.stop_reason != "pause_turn":
+                break
+            messages = messages + [{"role": "assistant", "content": response.content}]
+            response = _create_message(client, messages, None, deadline)
+    except (DiscoveryError, anthropic.APIError) as exc:
+        logger.warning("drafting: hook search failed (%s) — using placeholder", exc)
+        return placeholder, None
+
     text = "".join(block.text for block in response.content if block.type == "text")
     data = _extract_json_object(text)
     value = data.get("personalisation") if isinstance(data, dict) else None
     if not isinstance(value, str) or not value.strip():
         # A malformed reply must not sink the whole draft — the rest is fixed.
         logger.warning("drafting: no usable personalisation in reply %r", text[:200])
-        return placeholder
-    return value.strip()
+        return placeholder, None
+    source = data.get("source") if isinstance(data, dict) else None
+    if not (isinstance(source, str) and source.strip() and source.strip().lower() != "null"):
+        source = None
+    else:
+        source = source.strip()[:500]
+    return value.strip(), source
 
 
-def build_draft(venue: Venue, profile: BandProfile) -> tuple[str, str]:
-    """Return (subject, body) for this venue's application email."""
+def build_draft(venue: Venue, profile: BandProfile) -> tuple[str, str, str | None]:
+    """Return (subject, body, source) for this venue's application email.
+
+    `source` is the page Claude used to ground the opening line, or None.
+    """
     language = draft_language(venue.country)
     year = _edition_year(venue)
     fill = _PLACEHOLDERS[language]
@@ -307,9 +348,10 @@ def build_draft(venue: Venue, profile: BandProfile) -> tuple[str, str]:
         subject = f"{band_name} — Application {venue.name} {year} (album release)"
         template = _ENGLISH_BODY
 
+    personalisation, source = _research_personalisation(venue, language)
     body = template.format(
         greeting=_greeting(venue, language),
-        personalisation=_generate_personalisation(venue, language),
+        personalisation=personalisation,
         date_line=_date_line(venue, language, year),
         band_name=band_name,
         signature_name=profile.signature_name or "Antony",
@@ -318,4 +360,4 @@ def build_draft(venue: Venue, profile: BandProfile) -> tuple[str, str]:
         video2=(profile.video2_url or fill["video2"]),
         epk=(profile.epk_url or fill["epk"]),
     )
-    return subject[:300], body
+    return subject[:300], body, source

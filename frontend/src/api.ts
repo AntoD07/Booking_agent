@@ -40,6 +40,21 @@ export function login(
   });
 }
 
+export function registerBand(
+  adminPassword: string,
+  bandName: string,
+  password: string,
+): Promise<{ ok: boolean; band_name: string; created: boolean }> {
+  return request("/api/auth/register-band", {
+    method: "POST",
+    body: JSON.stringify({
+      admin_password: adminPassword,
+      band_name: bandName,
+      password,
+    }),
+  });
+}
+
 export function logout(): Promise<{ ok: boolean }> {
   return request("/api/auth/logout", { method: "POST" });
 }

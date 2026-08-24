@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { UnauthorizedError, fetchBandProfile, updateBandProfile } from "./api";
+import { useT } from "./i18n";
 import type { BandProfile } from "./types";
 import "./VenueSheet.css";
 import "./DraftPanel.css";
@@ -24,6 +25,7 @@ export default function BandProfileSheet({
   onClose,
   onUnauthorized,
 }: BandProfileSheetProps) {
+  const t = useT();
   const [form, setForm] = useState<BandProfile>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -32,7 +34,7 @@ export default function BandProfileSheet({
 
   function fail(err: unknown) {
     if (err instanceof UnauthorizedError) onUnauthorized();
-    else setError(err instanceof Error ? err.message : "Something went wrong");
+    else setError(err instanceof Error ? err.message : t("bandProfile.errorFallback"));
     setBusy(false);
   }
 
@@ -100,22 +102,22 @@ export default function BandProfileSheet({
         className="sheet"
         role="dialog"
         aria-modal="true"
-        aria-label="Band profile"
+        aria-label={t("bandProfile.ariaLabel")}
         onClick={(event) => event.stopPropagation()}
       >
         <header className="sheet-header">
           <div>
-            <p className="sheet-overline">Pitch</p>
-            <h2 className="sheet-title">Band profile</h2>
+            <p className="sheet-overline">{t("bandProfile.overline")}</p>
+            <h2 className="sheet-title">{t("bandProfile.title")}</h2>
           </div>
           <button type="button" className="sheet-close" onClick={onClose}>
-            Close
+            {t("common.close")}
           </button>
         </header>
 
         {loading ? (
           <p className="sheet-error" style={{ color: "var(--ink-soft)" }}>
-            Loading…
+            {t("bandProfile.loading")}
           </p>
         ) : (
           <form className="sheet-form" onSubmit={submit}>
@@ -123,15 +125,13 @@ export default function BandProfileSheet({
               className="draft-verify"
               style={{ margin: "0 0 0.5rem" }}
             >
-              These details fill every pitch. The band’s story and the album
-              text are fixed in the template — here you set who signs, the
-              contact line, and the video / EPK links.
+              {t("bandProfile.intro")}
             </p>
             <fieldset className="sheet-section">
-              <legend className="sheet-legend">Signature</legend>
+              <legend className="sheet-legend">{t("bandProfile.signatureLegend")}</legend>
               <div className="sheet-grid">
                 <label className="field">
-                  <span>Band name</span>
+                  <span>{t("bandProfile.bandName")}</span>
                   <input
                     value={form.band_name}
                     onChange={(e) => set("band_name", e.target.value)}
@@ -139,7 +139,7 @@ export default function BandProfileSheet({
                   />
                 </label>
                 <label className="field">
-                  <span>Signed by</span>
+                  <span>{t("bandProfile.signedBy")}</span>
                   <input
                     value={form.signature_name}
                     onChange={(e) => set("signature_name", e.target.value)}
@@ -147,14 +147,14 @@ export default function BandProfileSheet({
                   />
                 </label>
                 <label className="field">
-                  <span>Phone</span>
+                  <span>{t("bandProfile.phone")}</span>
                   <input
                     value={form.phone ?? ""}
                     onChange={(e) => set("phone", e.target.value)}
                   />
                 </label>
                 <label className="field">
-                  <span>Email</span>
+                  <span>{t("bandProfile.email")}</span>
                   <input
                     value={form.email ?? ""}
                     onChange={(e) => set("email", e.target.value)}
@@ -162,7 +162,7 @@ export default function BandProfileSheet({
                   />
                 </label>
                 <label className="field field-wide">
-                  <span>Website</span>
+                  <span>{t("bandProfile.website")}</span>
                   <input
                     value={form.website ?? ""}
                     onChange={(e) => set("website", e.target.value)}
@@ -173,10 +173,10 @@ export default function BandProfileSheet({
             </fieldset>
 
             <fieldset className="sheet-section">
-              <legend className="sheet-legend">Links</legend>
+              <legend className="sheet-legend">{t("bandProfile.linksLegend")}</legend>
               <div className="sheet-grid">
                 <label className="field field-wide">
-                  <span>Live video 1</span>
+                  <span>{t("bandProfile.video1")}</span>
                   <input
                     value={form.video1_url ?? ""}
                     onChange={(e) => set("video1_url", e.target.value)}
@@ -185,7 +185,7 @@ export default function BandProfileSheet({
                   />
                 </label>
                 <label className="field field-wide">
-                  <span>Live video 2</span>
+                  <span>{t("bandProfile.video2")}</span>
                   <input
                     value={form.video2_url ?? ""}
                     onChange={(e) => set("video2_url", e.target.value)}
@@ -194,7 +194,7 @@ export default function BandProfileSheet({
                   />
                 </label>
                 <label className="field field-wide">
-                  <span>EPK link</span>
+                  <span>{t("bandProfile.epkLink")}</span>
                   <input
                     value={form.epk_url ?? ""}
                     onChange={(e) => set("epk_url", e.target.value)}
@@ -209,7 +209,11 @@ export default function BandProfileSheet({
 
             <div className="sheet-actions">
               <button type="submit" className="sheet-save" disabled={busy}>
-                {busy ? "Saving…" : saved ? "Saved" : "Save profile"}
+                {busy
+                  ? t("common.saving")
+                  : saved
+                    ? t("bandProfile.saved")
+                    : t("bandProfile.saveProfile")}
               </button>
             </div>
           </form>

@@ -1,0 +1,30 @@
+.lang-switcher {
+  display: inline-flex;
+  gap: 0.15rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.15rem;
+  background: var(--paper-raised);
+}
+
+.lang-option {
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.lang-option:hover {
+  color: var(--ink);
+}
+
+.lang-option--active {
+  background: var(--accent);
+  color: var(--paper-raised);
+}

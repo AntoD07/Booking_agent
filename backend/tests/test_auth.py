@@ -44,3 +44,75 @@ def test_login_is_case_insensitive_on_band_name(client, band):
 def test_logout_clears_session(auth_client):
     auth_client.post("/api/auth/logout")
     assert auth_client.get("/api/auth/me").status_code == 401
+
+
+# --- Band registration (owner-gated, no shell needed) ---------------------
+
+# conftest sets APP_PASSWORD (the owner secret) to this.
+ADMIN_PW = "test-password"
+
+
+def test_register_band_creates_and_can_log_in(client):
+    response = client.post(
+        "/api/auth/register-band",
+        json={
+            "admin_password": ADMIN_PW,
+            "band_name": "Les Amis",
+            "password": "amispw",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json() == {"ok": True, "band_name": "Les Amis", "created": True}
+    # The new band can immediately log in.
+    login = client.post(
+        "/api/auth/login", json={"band_name": "Les Amis", "password": "amispw"}
+    )
+    assert login.status_code == 200
+
+
+def test_register_existing_band_resets_password(client, band):
+    # `band` fixture created TEST_BAND; re-registering resets its password.
+    response = client.post(
+        "/api/auth/register-band",
+        json={
+            "admin_password": ADMIN_PW,
+            "band_name": TEST_BAND,
+            "password": "brand-new-pw",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["created"] is False
+    assert (
+        client.post(
+            "/api/auth/login",
+            json={"band_name": TEST_BAND, "password": "brand-new-pw"},
+        ).status_code
+        == 200
+    )
+
+
+def test_register_band_wrong_owner_password_rejected(client):
+    response = client.post(
+        "/api/auth/register-band",
+        json={
+            "admin_password": "not-the-owner-secret",
+            "band_name": "Sneaky",
+            "password": "sneakypw",
+        },
+    )
+    assert response.status_code == 401
+    # Nothing was created.
+    assert (
+        client.post(
+            "/api/auth/login", json={"band_name": "Sneaky", "password": "sneakypw"}
+        ).status_code
+        == 401
+    )
+
+
+def test_register_band_short_password_rejected(client):
+    response = client.post(
+        "/api/auth/register-band",
+        json={"admin_password": ADMIN_PW, "band_name": "Tiny", "password": "abc"},
+    )
+    assert response.status_code == 422

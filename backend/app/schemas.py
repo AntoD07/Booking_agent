@@ -313,3 +313,26 @@ class SessionOut(BaseModel):
 
     authenticated: bool = True
     band_name: str
+
+
+class RegisterBandRequest(BaseModel):
+    """Create (or reset the password of) a band. Gated by the owner secret."""
+
+    admin_password: str
+    band_name: str
+    password: str
+
+    _validate_band = field_validator("band_name")(_require_name)
+
+    @field_validator("password")
+    @classmethod
+    def _min_length(cls, value: str) -> str:
+        if len(value) < 6:
+            raise ValueError("password must be at least 6 characters")
+        return value
+
+
+class RegisterBandOut(BaseModel):
+    ok: bool = True
+    band_name: str
+    created: bool  # True if newly created, False if an existing band's password was reset

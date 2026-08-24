@@ -10,12 +10,12 @@ import {
   pingDiscovery,
 } from "./api";
 import {
-  TYPE_LABELS,
   VENUE_TYPES,
   type Artist,
   type Suggestion,
   type VenueType,
 } from "./types";
+import { useI18n, type Lang } from "./i18n";
 import "./ManualScan.css";
 
 const MAX_ARTISTS = 5;
@@ -27,15 +27,23 @@ const MAX_WAIT_MS = 12 * 60 * 1000;
 type Mode = "artists" | "general";
 type ReviewState = "pending" | "accepting" | "accepted" | "dismissed";
 
-function formatScanned(iso: string | null): string {
+type Translate = (key: string, vars?: Record<string, string | number>) => string;
+
+function formatScanned(
+  iso: string | null,
+  t: Translate,
+  lang: Lang,
+): string {
   if (!iso) {
-    return "Never scanned";
+    return t("manualScan.neverScanned");
   }
-  return `Scanned ${new Date(iso).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  })}`;
+  return t("manualScan.scannedOn", {
+    date: new Date(iso).toLocaleDateString(lang, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }),
+  });
 }
 
 interface ManualScanProps {
@@ -44,6 +52,7 @@ interface ManualScanProps {
 }
 
 export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) {
+  const { t, lang } = useI18n();
   const [mode, setMode] = useState<Mode>("artists");
 
   // By-artist form
@@ -84,7 +93,7 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
     if (err instanceof UnauthorizedError) {
       onUnauthorized();
     } else {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : t("manualScan.somethingWentWrong"));
     }
   };
 
@@ -102,7 +111,7 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
   };
 
   const removeArtist = async (artist: Artist) => {
-    if (!window.confirm(`Remove “${artist.name}” from the artist list?`)) {
+    if (!window.confirm(t("manualScan.removeArtistConfirm", { name: artist.name }))) {
       return;
     }
     try {
@@ -119,10 +128,10 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
     setPingResult(null);
     try {
       const result = await pingDiscovery();
-      setPingResult(`Claude answered in ${result.seconds}s — connection is fine.`);
+      setPingResult(t("manualScan.pingSuccess", { seconds: result.seconds }));
     } catch (err) {
       setPingResult(
-        err instanceof Error ? err.message : "The connection test failed.",
+        err instanceof Error ? err.message : t("manualScan.pingFailed"),
       );
     } finally {
       setPinging(false);
@@ -168,9 +177,7 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
           if (err instanceof Error && err.message === "Scan not found") {
             // The in-memory job vanished mid-scan: the server restarted
             // (free hosting tiers do this). Nothing to recover.
-            setError(
-              "The server restarted during the scan and lost it. Try again in a minute.",
-            );
+            setError(t("manualScan.serverRestarted"));
             break;
           }
           throw err;
@@ -186,13 +193,11 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
           break;
         }
         if (job.status === "failed") {
-          setError(job.error ?? "The scan failed — try again.");
+          setError(job.error ?? t("manualScan.scanFailed"));
           break;
         }
         if (Date.now() - startedAt > MAX_WAIT_MS) {
-          setError(
-            "The scan is taking unusually long. Leave it and try again in a few minutes.",
-          );
+          setError(t("manualScan.scanTakingLong"));
           break;
         }
       }
@@ -219,11 +224,16 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
     if (!region.trim() || scanning) {
       return;
     }
-    const what = eventType ? TYPE_LABELS[eventType].toLowerCase() + "s" : "events";
+    const what = eventType ? t(`type.${eventType}`) : t("manualScan.eventsGeneric");
+    const where = region.trim();
     setAcceptSource(
-      `General scan — ${what} in ${region.trim()}${
-        period.trim() ? `, ${period.trim()}` : ""
-      }`,
+      period.trim()
+        ? t("manualScan.generalScanSourcePeriod", {
+            what,
+            region: where,
+            period: period.trim(),
+          })
+        : t("manualScan.generalScanSource", { what, region: where }),
     );
     await runScan(() =>
       generalScan({
@@ -265,23 +275,23 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
     <div className="scan-page">
       <header className="scan-header">
         <div>
-          <p className="scan-overline">Season 2027</p>
-          <h1 className="scan-title">Manual scan</h1>
+          <p className="scan-overline">{t("manualScan.seasonOverline")}</p>
+          <h1 className="scan-title">{t("manualScan.title")}</h1>
         </div>
         <button className="scan-back" onClick={onBack}>
-          Back to venues
+          {t("manualScan.backToVenues")}
         </button>
       </header>
 
       <main className="scan-main">
-        <div className="scan-modes" role="tablist" aria-label="Research method">
+        <div className="scan-modes" role="tablist" aria-label={t("manualScan.researchMethod")}>
           <button
             className={`scan-mode${mode === "artists" ? " is-active" : ""}`}
             role="tab"
             aria-selected={mode === "artists"}
             onClick={() => setMode("artists")}
           >
-            By artist
+            {t("manualScan.byArtist")}
           </button>
           <button
             className={`scan-mode${mode === "general" ? " is-active" : ""}`}
@@ -289,25 +299,22 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
             aria-selected={mode === "general"}
             onClick={() => setMode("general")}
           >
-            By region
+            {t("manualScan.byRegion")}
           </button>
         </div>
 
         {mode === "artists" ? (
           <>
             <p className="scan-lede">
-              Follow the artists we admire — every stage they have played is
-              a lead for us. Choose up to {MAX_ARTISTS} reference artists and
-              Claude will search the manouche and swing circuit for the
-              venues behind their tour dates.
+              {t("manualScan.artistLede", { count: MAX_ARTISTS })}
             </p>
 
             <form className="scan-form" onSubmit={runArtistScan}>
               <fieldset className="scan-artists">
-                <legend className="scan-label">Reference artists</legend>
+                <legend className="scan-label">{t("manualScan.referenceArtists")}</legend>
                 {artists.length === 0 && extras.length === 0 && (
                   <p className="scan-empty-list">
-                    No artists in the table yet — add a name below.
+                    {t("manualScan.emptyArtistList")}
                   </p>
                 )}
                 {artists.map((artist) => {
@@ -325,13 +332,13 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
                       />
                       <span className="scan-artist-name">{artist.name}</span>
                       <span className="scan-artist-scanned">
-                        {formatScanned(artist.last_scanned)}
+                        {formatScanned(artist.last_scanned, t, lang)}
                       </span>
                       <button
                         className="scan-artist-remove"
                         type="button"
-                        aria-label={`Remove ${artist.name}`}
-                        title={`Remove ${artist.name} from the list`}
+                        aria-label={t("manualScan.removeArtistAria", { name: artist.name })}
+                        title={t("manualScan.removeArtistTitle", { name: artist.name })}
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -353,7 +360,7 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
                       }
                     />
                     <span className="scan-artist-name">{name}</span>
-                    <span className="scan-artist-scanned">New name</span>
+                    <span className="scan-artist-scanned">{t("manualScan.newName")}</span>
                   </label>
                 ))}
               </fieldset>
@@ -369,8 +376,8 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
                       addExtra();
                     }
                   }}
-                  placeholder="Another band, not in the list"
-                  aria-label="Add an artist by name"
+                  placeholder={t("manualScan.extraPlaceholder")}
+                  aria-label={t("manualScan.addArtistAria")}
                   disabled={full}
                 />
                 <button
@@ -379,7 +386,7 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
                   onClick={addExtra}
                   disabled={!extraInput.trim() || full}
                 >
-                  Add
+                  {t("common.add")}
                 </button>
               </div>
 
@@ -389,37 +396,35 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
                 disabled={scanning || chosen.length === 0}
               >
                 {scanning
-                  ? "Scanning…"
+                  ? t("manualScan.scanning")
                   : chosen.length === 0
-                    ? "Scan"
-                    : `Scan ${chosen.length} ${
-                        chosen.length === 1 ? "artist" : "artists"
-                      }`}
+                    ? t("manualScan.scan")
+                    : chosen.length === 1
+                      ? t("manualScan.scanCountOne", { count: chosen.length })
+                      : t("manualScan.scanCountMany", { count: chosen.length })}
               </button>
             </form>
           </>
         ) : (
           <>
             <p className="scan-lede">
-              Cast a wider net — search a region for festivals and stages of
-              a given kind over a period, whether or not our reference
-              artists have played them.
+              {t("manualScan.generalLede")}
             </p>
 
             <form className="scan-form" onSubmit={runGeneralScan}>
               <label className="scan-field">
-                <span className="scan-label">Region</span>
+                <span className="scan-label">{t("manualScan.region")}</span>
                 <input
                   className="scan-input"
                   value={region}
                   onChange={(e) => setRegion(e.target.value)}
-                  placeholder="e.g. south of France, Flanders, Bavaria"
+                  placeholder={t("manualScan.regionPlaceholder")}
                   required
                 />
               </label>
               <label className="scan-field">
                 <span className="scan-label">
-                  Event type <span className="scan-optional">optional</span>
+                  {t("manualScan.eventType")} <span className="scan-optional">{t("manualScan.optional")}</span>
                 </span>
                 <select
                   className="scan-select"
@@ -428,23 +433,23 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
                     setEventType(e.target.value as VenueType | "")
                   }
                 >
-                  <option value="">Any kind of stage</option>
+                  <option value="">{t("manualScan.anyStage")}</option>
                   {VENUE_TYPES.map((type) => (
                     <option key={type} value={type}>
-                      {TYPE_LABELS[type]}
+                      {t(`type.${type}`)}
                     </option>
                   ))}
                 </select>
               </label>
               <label className="scan-field">
                 <span className="scan-label">
-                  Period <span className="scan-optional">optional</span>
+                  {t("manualScan.period")} <span className="scan-optional">{t("manualScan.optional")}</span>
                 </span>
                 <input
                   className="scan-input"
                   value={period}
                   onChange={(e) => setPeriod(e.target.value)}
-                  placeholder="e.g. summer 2027, next spring"
+                  placeholder={t("manualScan.periodPlaceholder")}
                 />
               </label>
 
@@ -453,7 +458,7 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
                 type="submit"
                 disabled={scanning || !region.trim()}
               >
-                {scanning ? "Scanning…" : "Scan the region"}
+                {scanning ? t("manualScan.scanning") : t("manualScan.scanRegion")}
               </button>
             </form>
           </>
@@ -466,14 +471,14 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
             onClick={testConnection}
             disabled={pinging}
           >
-            {pinging ? "Testing…" : "Test the Claude connection"}
+            {pinging ? t("manualScan.testing") : t("manualScan.testConnection")}
           </button>
           {pingResult && <span className="scan-ping-result">{pingResult}</span>}
         </p>
 
         {scanning && (
           <p className="scan-status">
-            Claude is searching — this can take a few minutes.
+            {t("manualScan.searchingStatus")}
             {scanNote && (
               <span className="scan-note">
                 <br />
@@ -486,18 +491,18 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
 
         {!scanning && scanned && visible.length === 0 && (
           <p className="scan-status">
-            Nothing left to review. Run another scan or return to the board.
+            {t("manualScan.nothingToReview")}
           </p>
         )}
 
         {visible.length > 0 && (
-          <section className="scan-results" aria-label="Suggested venues">
+          <section className="scan-results" aria-label={t("manualScan.suggestedVenues")}>
             <h2 className="scan-results-title">
-              For review
+              {t("manualScan.forReview")}
               <span className="scan-results-count">{visible.length}</span>
             </h2>
             <p className="scan-results-note">
-              Nothing joins the pipeline until you accept it.
+              {t("manualScan.reviewNote")}
             </p>
             {visible.map(({ suggestion, index, state }) => {
               const place = [suggestion.city, suggestion.country]
@@ -507,12 +512,12 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
                 <article className="suggestion-card" key={index}>
                   <h3 className="suggestion-name">{suggestion.name}</h3>
                   <p className="suggestion-meta">
-                    {TYPE_LABELS[suggestion.type]}
+                    {t(`type.${suggestion.type}`)}
                     {place && ` · ${place}`}
                   </p>
                   {suggestion.artist && (
                     <p className="suggestion-artist">
-                      {suggestion.artist} played here
+                      {t("manualScan.artistPlayedHere", { artist: suggestion.artist })}
                     </p>
                   )}
                   {suggestion.event_dates && (
@@ -526,7 +531,7 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
                           target="_blank"
                           rel="noreferrer"
                         >
-                          Website
+                          {t("manualScan.website")}
                         </a>
                       )}
                       {suggestion.source_url && (
@@ -535,7 +540,7 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
                           target="_blank"
                           rel="noreferrer"
                         >
-                          Source
+                          {t("manualScan.source")}
                         </a>
                       )}
                     </p>
@@ -543,23 +548,24 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
                   {suggestion.already_in_pipeline ? (
                     <>
                       <p className="suggestion-known">
-                        Already in the pipeline
+                        {t("manualScan.alreadyInPipeline")}
                         {suggestion.matched_venue_name &&
-                          ` as “${suggestion.matched_venue_name}”`}
+                          t("manualScan.alreadyInPipelineAs", {
+                            name: suggestion.matched_venue_name,
+                          })}
                       </p>
                       <div className="suggestion-actions">
                         <button
                           className="suggestion-dismiss"
                           onClick={() => dismiss(index)}
                         >
-                          Dismiss
+                          {t("manualScan.dismiss")}
                         </button>
                       </div>
                     </>
                   ) : state === "accepted" ? (
                     <p className="suggestion-accepted">
-                      Added to the pipeline — Claude is researching the card
-                      in the background
+                      {t("manualScan.added")}
                     </p>
                   ) : (
                     <div className="suggestion-actions">
@@ -568,13 +574,13 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
                         disabled={state === "accepting"}
                         onClick={() => accept(index)}
                       >
-                        {state === "accepting" ? "Adding…" : "Add to pipeline"}
+                        {state === "accepting" ? t("manualScan.adding") : t("manualScan.addToPipeline")}
                       </button>
                       <button
                         className="suggestion-dismiss"
                         onClick={() => dismiss(index)}
                       >
-                        Dismiss
+                        {t("manualScan.dismiss")}
                       </button>
                     </div>
                   )}

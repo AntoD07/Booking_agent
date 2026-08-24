@@ -82,3 +82,37 @@
   margin: 0;
   text-align: center;
 }
+
+.login-subtitle {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin: 0 0 0.25rem;
+}
+
+.login-notice {
+  color: var(--ink);
+  font-size: 0.9rem;
+  margin: 0;
+  text-align: center;
+}
+
+.login-linkish {
+  margin-top: 0.25rem;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.35rem;
+}
+
+.login-linkish:hover {
+  text-decoration: underline;
+}
+
+.login-lang {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.75rem;
+}

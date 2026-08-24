@@ -5,34 +5,40 @@ import {
   type StaleDatesReset,
 } from "./api";
 import type { ResearchFinding, ResearchRun } from "./types";
+import { useI18n, type Lang } from "./i18n";
 import "./ResearchDialog.css";
 
-const FIELD_LABELS: Record<string, string> = {
-  website: "Website",
-  contact_email: "Contact email",
-  booking_contact: "Booking contact",
-  application_method: "How to apply",
-  application_url: "Application link",
-  application_deadline: "Application deadline",
-  event_dates: "Event dates",
-  note: "Note",
+const FIELD_KEYS: Record<string, string> = {
+  website: "researchDialog.field.website",
+  contact_email: "researchDialog.field.contactEmail",
+  booking_contact: "researchDialog.field.bookingContact",
+  application_method: "researchDialog.field.applicationMethod",
+  application_url: "researchDialog.field.applicationUrl",
+  application_deadline: "researchDialog.field.applicationDeadline",
+  event_dates: "researchDialog.field.eventDates",
+  note: "researchDialog.field.note",
 };
 
+function fieldLabel(field: string, t: (key: string) => string): string {
+  const key = FIELD_KEYS[field];
+  return key ? t(key) : field;
+}
+
 /** Deadlines travel as "YYYY-MM"; show just the month — the season is 2027. */
-function formatValue(finding: ResearchFinding): string {
+function formatValue(finding: ResearchFinding, lang: Lang): string {
   if (
     finding.field === "application_deadline" &&
     /^\d{4}-\d{2}$/.test(finding.new_value)
   ) {
-    return new Date(`${finding.new_value}-01`).toLocaleDateString(undefined, {
+    return new Date(`${finding.new_value}-01`).toLocaleDateString(lang, {
       month: "long",
     });
   }
   return finding.new_value;
 }
 
-function formatStarted(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
+function formatStarted(iso: string, lang: Lang): string {
+  return new Date(iso).toLocaleDateString(lang, {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -51,12 +57,9 @@ function byVenue(findings: ResearchFinding[]): [string, ResearchFinding[]][] {
 }
 
 function FindingsList({ findings }: { findings: ResearchFinding[] }) {
+  const { t, lang } = useI18n();
   if (findings.length === 0) {
-    return (
-      <p className="research-empty">
-        Nothing new was found for these venues this time.
-      </p>
-    );
+    return <p className="research-empty">{t("researchDialog.empty")}</p>;
   }
   return (
     <>
@@ -70,8 +73,8 @@ function FindingsList({ findings }: { findings: ResearchFinding[] }) {
                   className={`conf-dot conf-${finding.confidence}`}
                   title={
                     finding.confidence === "high"
-                      ? "High confidence — published or official"
-                      : "Medium confidence — derived from past editions"
+                      ? t("researchDialog.confHigh")
+                      : t("researchDialog.confMedium")
                   }
                 />
                 {finding.source && (
@@ -80,31 +83,33 @@ function FindingsList({ findings }: { findings: ResearchFinding[] }) {
                     href={finding.source}
                     target="_blank"
                     rel="noreferrer"
-                    title="Open the page this finding came from"
+                    title={t("researchDialog.sourceTitle")}
                   >
-                    source
+                    {t("researchDialog.sourceLink")}
                   </a>
                 )}
                 <span className="research-field">
-                  {FIELD_LABELS[finding.field] ?? finding.field}
+                  {fieldLabel(finding.field, t)}
                 </span>
                 <span className="research-value">
-                  {formatValue(finding)}
+                  {formatValue(finding, lang)}
                   {finding.old_value &&
                     finding.applied &&
                     finding.field !== "note" && (
                       <span className="research-old">
                         {" "}
-                        (was {finding.old_value})
+                        {t("researchDialog.wasValue", {
+                          value: finding.old_value,
+                        })}
                       </span>
                     )}
                 </span>
                 {!finding.applied && (
                   <span
                     className="research-kept"
-                    title="You entered this field yourself, so the found value was not applied — it is only shown here for review."
+                    title={t("researchDialog.keptTitle")}
                   >
-                    kept yours
+                    {t("researchDialog.keptYours")}
                   </span>
                 )}
               </li>
@@ -131,6 +136,7 @@ export default function ResearchDialog({
   onClose,
   onVenuesChanged,
 }: ResearchDialogProps) {
+  const { t, lang } = useI18n();
   const [pastRuns, setPastRuns] = useState<ResearchRun[]>([]);
   const [openPastId, setOpenPastId] = useState<number | null>(null);
   const [cleanup, setCleanup] = useState<"idle" | "confirm" | "working">("idle");
@@ -167,7 +173,7 @@ export default function ResearchDialog({
       if (result.cleared > 0) onVenuesChanged();
     } catch (err) {
       setCleanupError(
-        err instanceof Error ? err.message : "Something went wrong",
+        err instanceof Error ? err.message : t("researchDialog.genericError"),
       );
       setCleanup("idle");
     }
@@ -186,27 +192,26 @@ export default function ResearchDialog({
         className="research-dialog"
         role="dialog"
         aria-modal="true"
-        aria-label="Search and fill venue information"
+        aria-label={t("researchDialog.ariaLabel")}
       >
         <header className="research-header">
           <div>
-            <p className="research-overline">Season 2027</p>
-            <h2 className="research-title">Search &amp; fill</h2>
+            <p className="research-overline">{t("researchDialog.overline")}</p>
+            <h2 className="research-title">{t("researchDialog.title")}</h2>
           </div>
           <button className="research-close" onClick={onClose}>
-            {running ? "Close (keeps searching)" : "Close"}
+            {running ? t("researchDialog.closeKeepSearching") : t("common.close")}
           </button>
         </header>
 
         <div className="research-body">
           {run === null && !error && (
-            <p className="research-status">Starting the search…</p>
+            <p className="research-status">{t("researchDialog.starting")}</p>
           )}
 
           {running && (
             <p className="research-status">
-              Claude is researching the venues most in need of information —
-              this can take a few minutes.
+              {t("researchDialog.running")}
               {run.note && (
                 <span className="research-note">
                   <br />
@@ -220,7 +225,7 @@ export default function ResearchDialog({
 
           {run?.status === "failed" && (
             <p className="research-error">
-              {run.error ?? "The search failed — try again."}
+              {run.error ?? t("researchDialog.failed")}
             </p>
           )}
 
@@ -234,9 +239,10 @@ export default function ResearchDialog({
               )}
               {run.findings.length > 0 && (
                 <p className="research-legend">
-                  <span className="conf-dot conf-high" /> published or official
-                  <span className="conf-dot conf-medium" /> derived from past
-                  editions
+                  <span className="conf-dot conf-high" />{" "}
+                  {t("researchDialog.legendHigh")}
+                  <span className="conf-dot conf-medium" />{" "}
+                  {t("researchDialog.legendMedium")}
                 </p>
               )}
             </>
@@ -244,7 +250,9 @@ export default function ResearchDialog({
 
           {pastRuns.length > 0 && (
             <section className="research-past">
-              <h3 className="research-past-title">Earlier searches</h3>
+              <h3 className="research-past-title">
+                {t("researchDialog.earlierSearches")}
+              </h3>
               {pastRuns.map((past) => (
                 <div className="research-past-run" key={past.id}>
                   <button
@@ -254,11 +262,11 @@ export default function ResearchDialog({
                     }
                   >
                     <span className="research-past-date">
-                      {formatStarted(past.started_at)}
+                      {formatStarted(past.started_at, lang)}
                     </span>
                     <span className="research-past-summary">
                       {past.status === "failed"
-                        ? (past.error ?? "Failed")
+                        ? (past.error ?? t("researchDialog.failedShort"))
                         : (past.summary ?? "…")}
                     </span>
                   </button>
@@ -272,23 +280,23 @@ export default function ResearchDialog({
 
           {!running && (
             <section className="research-cleanup">
-              <h3 className="research-past-title">Fix past-edition dates</h3>
+              <h3 className="research-past-title">
+                {t("researchDialog.fixPastDates")}
+              </h3>
               <p className="research-cleanup-note">
-                Clear dates Claude filled from a 2026 (or earlier) edition and
-                send those cards back to Discovered for the 2027 season.
-                Anything you entered by hand is left untouched.
+                {t("researchDialog.cleanupNote")}
               </p>
               {cleanup === "confirm" ? (
                 <div className="research-cleanup-confirm">
-                  <span>Clear all past-edition dates Claude filled?</span>
+                  <span>{t("researchDialog.cleanupConfirm")}</span>
                   <button className="research-cleanup-go" onClick={runCleanup}>
-                    Clear
+                    {t("researchDialog.clear")}
                   </button>
                   <button
                     className="research-cleanup-cancel"
                     onClick={() => setCleanup("idle")}
                   >
-                    Cancel
+                    {t("common.cancel")}
                   </button>
                 </div>
               ) : (
@@ -301,17 +309,24 @@ export default function ResearchDialog({
                   }}
                 >
                   {cleanup === "working"
-                    ? "Clearing…"
-                    : "Clear Claude’s past-edition dates"}
+                    ? t("researchDialog.clearing")
+                    : t("researchDialog.clearButton")}
                 </button>
               )}
               {cleanupResult && (
                 <p className="research-cleanup-result">
                   {cleanupResult.cleared === 0
-                    ? "No past-edition dates to clear."
-                    : `Cleared dates on ${cleanupResult.cleared} venue${
-                        cleanupResult.cleared === 1 ? "" : "s"
-                      }, moved to Discovered: ${cleanupResult.venues.join(", ")}.`}
+                    ? t("researchDialog.nothingToClear")
+                    : t(
+                        cleanupResult.cleared === 1
+                          ? "researchDialog.clearedOne"
+                          : "researchDialog.clearedMany",
+                        {
+                          count: cleanupResult.cleared,
+                          status: t("status.discovered"),
+                          venues: cleanupResult.venues.join(", "),
+                        },
+                      )}
                 </p>
               )}
               {cleanupError && <p className="research-error">{cleanupError}</p>}

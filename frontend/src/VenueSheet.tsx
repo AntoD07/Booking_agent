@@ -10,8 +10,6 @@ import {
 import DraftPanel from "./DraftPanel";
 import {
   ADDED_BY_OPTIONS,
-  STATUS_LABELS,
-  TYPE_LABELS,
   VENUE_STATUSES,
   VENUE_TYPES,
   type Venue,
@@ -20,22 +18,8 @@ import {
   type VenueStatus,
   type VenueType,
 } from "./types";
+import { useI18n, useT } from "./i18n";
 import "./VenueSheet.css";
-
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
 
 // Current year through the season after next; a venue's saved year is
 // appended at render time if it falls outside this window.
@@ -141,6 +125,8 @@ export default function VenueSheet({
   onVenueChanged,
   onUnauthorized,
 }: VenueSheetProps) {
+  const t = useT();
+  const { lang } = useI18n();
   const [form, setForm] = useState<FormState>(() => initForm(venue));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -193,7 +179,9 @@ export default function VenueSheet({
         {level && (
           <span
             className={`conf-dot conf-${level}`}
-            title={`Filled by Claude — ${level} confidence. Edit to confirm.`}
+            title={t("venueSheet.filledByClaude", {
+              level: t(`venueSheet.confLevel.${level}`),
+            })}
           />
         )}
         {source && (
@@ -202,10 +190,10 @@ export default function VenueSheet({
             href={source}
             target="_blank"
             rel="noreferrer"
-            title="Open the page Claude found this on"
+            title={t("venueSheet.openSourcePage")}
             onClick={(e) => e.stopPropagation()}
           >
-            source
+            {t("venueSheet.source")}
           </a>
         )}
       </>
@@ -214,9 +202,9 @@ export default function VenueSheet({
 
   function fail(err: unknown) {
     if (err instanceof UnauthorizedError) {
-      setError("Your session expired — reload the page and sign in again.");
+      setError(t("venueSheet.sessionExpired"));
     } else {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : t("venueSheet.genericError"));
     }
     setBusy(false);
   }
@@ -290,25 +278,29 @@ export default function VenueSheet({
         className="sheet"
         role="dialog"
         aria-modal="true"
-        aria-label={venue ? venue.name : "New venue"}
+        aria-label={venue ? venue.name : t("venueSheet.newVenue")}
         onClick={(event) => event.stopPropagation()}
       >
         <header className="sheet-header">
           <div>
-            <p className="sheet-overline">{venue ? "Venue" : "New venue"}</p>
-            <h2 className="sheet-title">{venue ? venue.name : "Add a venue"}</h2>
+            <p className="sheet-overline">
+              {venue ? t("venueSheet.venue") : t("venueSheet.newVenue")}
+            </p>
+            <h2 className="sheet-title">
+              {venue ? venue.name : t("venueSheet.addVenueTitle")}
+            </h2>
           </div>
           <button type="button" className="sheet-close" onClick={onClose}>
-            Close
+            {t("common.close")}
           </button>
         </header>
 
         <form className="sheet-form" onSubmit={submit}>
           <fieldset className="sheet-section">
-            <legend className="sheet-legend">Essentials</legend>
+            <legend className="sheet-legend">{t("venueSheet.essentials")}</legend>
             <div className="sheet-grid">
               <label className="field field-wide">
-                <span>Name{confidenceDot("name")}</span>
+                <span>{t("venueSheet.name")}{confidenceDot("name")}</span>
                 <input
                   value={form.name}
                   onChange={(e) => set("name", e.target.value)}
@@ -317,48 +309,48 @@ export default function VenueSheet({
                 />
               </label>
               <label className="field">
-                <span>Type</span>
+                <span>{t("venueSheet.type")}</span>
                 <select
                   value={form.type}
                   onChange={(e) => set("type", e.target.value as VenueType)}
                 >
                   {VENUE_TYPES.map((type) => (
                     <option key={type} value={type}>
-                      {TYPE_LABELS[type]}
+                      {t(`type.${type}`)}
                     </option>
                   ))}
                 </select>
               </label>
               <label className="field">
-                <span>Status</span>
+                <span>{t("venueSheet.status")}</span>
                 <select
                   value={form.status}
                   onChange={(e) => set("status", e.target.value as VenueStatus)}
                 >
                   {VENUE_STATUSES.map((status) => (
                     <option key={status} value={status}>
-                      {STATUS_LABELS[status]}
+                      {t(`status.${status}`)}
                     </option>
                   ))}
                 </select>
               </label>
               <label className="field">
-                <span>City{confidenceDot("city")}</span>
+                <span>{t("venueSheet.city")}{confidenceDot("city")}</span>
                 <input
                   value={form.city}
                   onChange={(e) => set("city", e.target.value)}
                 />
               </label>
               <label className="field">
-                <span>Region{confidenceDot("region")}</span>
+                <span>{t("venueSheet.region")}{confidenceDot("region")}</span>
                 <input
                   value={form.region}
                   onChange={(e) => set("region", e.target.value)}
-                  placeholder="e.g. Vaud, Occitanie"
+                  placeholder={t("venueSheet.regionPlaceholder")}
                 />
               </label>
               <label className="field">
-                <span>Country{confidenceDot("country")}</span>
+                <span>{t("venueSheet.country")}{confidenceDot("country")}</span>
                 <input
                   value={form.country}
                   onChange={(e) => set("country", e.target.value)}
@@ -368,19 +360,23 @@ export default function VenueSheet({
           </fieldset>
 
           <fieldset className="sheet-section">
-            <legend className="sheet-legend">Application</legend>
+            <legend className="sheet-legend">{t("venueSheet.application")}</legend>
             <div className="sheet-grid">
               <div className="field">
-                <span>Application deadline{confidenceDot("application_deadline")}</span>
+                <span>{t("venueSheet.applicationDeadline")}{confidenceDot("application_deadline")}</span>
                 <div className="deadline-selects">
                   <select
-                    aria-label="Deadline month"
+                    aria-label={t("venueSheet.deadlineMonth")}
                     value={form.deadline_month}
                     onChange={(e) => set("deadline_month", e.target.value)}
                   >
-                    <option value="">Month —</option>
-                    {MONTHS.map((month, index) => {
+                    <option value="">{t("venueSheet.monthPlaceholder")}</option>
+                    {Array.from({ length: 12 }, (_, index) => {
                       const value = String(index + 1).padStart(2, "0");
+                      const month = new Date(2000, index, 1).toLocaleDateString(
+                        lang,
+                        { month: "long" },
+                      );
                       return (
                         <option key={value} value={value}>
                           {month}
@@ -389,11 +385,11 @@ export default function VenueSheet({
                     })}
                   </select>
                   <select
-                    aria-label="Deadline year"
+                    aria-label={t("venueSheet.deadlineYear")}
                     value={form.deadline_year}
                     onChange={(e) => set("deadline_year", e.target.value)}
                   >
-                    <option value="">Year —</option>
+                    <option value="">{t("venueSheet.yearPlaceholder")}</option>
                     {[
                       ...DEADLINE_YEARS,
                       ...(form.deadline_year &&
@@ -409,23 +405,23 @@ export default function VenueSheet({
                 </div>
               </div>
               <label className="field">
-                <span>Event dates{confidenceDot("event_dates")}</span>
+                <span>{t("venueSheet.eventDates")}{confidenceDot("event_dates")}</span>
                 <input
                   value={form.event_dates}
                   onChange={(e) => set("event_dates", e.target.value)}
-                  placeholder="e.g. 12–14 July"
+                  placeholder={t("venueSheet.eventDatesPlaceholder")}
                 />
               </label>
               <label className="field">
-                <span>How to apply{confidenceDot("application_method")}</span>
+                <span>{t("venueSheet.howToApply")}{confidenceDot("application_method")}</span>
                 <input
                   value={form.application_method}
                   onChange={(e) => set("application_method", e.target.value)}
-                  placeholder="email, form…"
+                  placeholder={t("venueSheet.howToApplyPlaceholder")}
                 />
               </label>
               <label className="field">
-                <span>Application link{confidenceDot("application_url")}</span>
+                <span>{t("venueSheet.applicationLink")}{confidenceDot("application_url")}</span>
                 <input
                   value={form.application_url}
                   onChange={(e) => set("application_url", e.target.value)}
@@ -436,17 +432,17 @@ export default function VenueSheet({
           </fieldset>
 
           <fieldset className="sheet-section">
-            <legend className="sheet-legend">Contact</legend>
+            <legend className="sheet-legend">{t("venueSheet.contact")}</legend>
             <div className="sheet-grid">
               <label className="field">
-                <span>Programmer / contact{confidenceDot("booking_contact")}</span>
+                <span>{t("venueSheet.programmerContact")}{confidenceDot("booking_contact")}</span>
                 <input
                   value={form.booking_contact}
                   onChange={(e) => set("booking_contact", e.target.value)}
                 />
               </label>
               <label className="field">
-                <span>Email{confidenceDot("contact_email")}</span>
+                <span>{t("venueSheet.email")}{confidenceDot("contact_email")}</span>
                 <input
                   value={form.contact_email}
                   onChange={(e) => set("contact_email", e.target.value)}
@@ -454,7 +450,7 @@ export default function VenueSheet({
                 />
               </label>
               <label className="field field-wide">
-                <span>Website{confidenceDot("website")}</span>
+                <span>{t("venueSheet.website")}{confidenceDot("website")}</span>
                 <input
                   value={form.website}
                   onChange={(e) => set("website", e.target.value)}
@@ -465,10 +461,10 @@ export default function VenueSheet({
           </fieldset>
 
           <fieldset className="sheet-section">
-            <legend className="sheet-legend">Notes</legend>
+            <legend className="sheet-legend">{t("venueSheet.notes")}</legend>
             <div className="sheet-grid">
               <label className="field field-wide">
-                <span>Research notes{confidenceDot("research_notes")}</span>
+                <span>{t("venueSheet.researchNotes")}{confidenceDot("research_notes")}</span>
                 <textarea
                   value={form.research_notes}
                   onChange={(e) => set("research_notes", e.target.value)}
@@ -476,14 +472,14 @@ export default function VenueSheet({
                 />
               </label>
               <label className="field field-wide">
-                <span>Next action{confidenceDot("next_action")}</span>
+                <span>{t("venueSheet.nextAction")}{confidenceDot("next_action")}</span>
                 <input
                   value={form.next_action}
                   onChange={(e) => set("next_action", e.target.value)}
                 />
               </label>
               <label className="field">
-                <span>Last contact{confidenceDot("last_contact")}</span>
+                <span>{t("venueSheet.lastContact")}{confidenceDot("last_contact")}</span>
                 <input
                   type="date"
                   value={form.last_contact}
@@ -491,7 +487,7 @@ export default function VenueSheet({
                 />
               </label>
               <label className="field">
-                <span>Fit (0–5)</span>
+                <span>{t("venueSheet.fit")}</span>
                 <input
                   type="number"
                   min={0}
@@ -502,20 +498,20 @@ export default function VenueSheet({
                 />
               </label>
               <label className="field">
-                <span>Source{confidenceDot("source")}</span>
+                <span>{t("venueSheet.source")}{confidenceDot("source")}</span>
                 <input
                   value={form.source}
                   onChange={(e) => set("source", e.target.value)}
-                  placeholder="how you found this venue"
+                  placeholder={t("venueSheet.sourcePlaceholder")}
                 />
               </label>
               <label className="field">
-                <span>Added by</span>
+                <span>{t("venueSheet.addedBy")}</span>
                 <select
                   value={form.added_by}
                   onChange={(e) => set("added_by", e.target.value)}
                 >
-                  <option value="">—</option>
+                  <option value="">{t("common.none")}</option>
                   {ADDED_BY_OPTIONS.map((person) => (
                     <option key={person} value={person}>
                       {person}
@@ -531,11 +527,11 @@ export default function VenueSheet({
           </fieldset>
 
           {venue && (
-            <section className="sheet-section" aria-label="Who played here">
-              <h3 className="sheet-legend">Who played here</h3>
+            <section className="sheet-section" aria-label={t("venueSheet.whoPlayedHere")}>
+              <h3 className="sheet-legend">{t("venueSheet.whoPlayedHere")}</h3>
               {appearances.length === 0 ? (
                 <p className="appearance-empty">
-                  No reference artists noted yet.
+                  {t("venueSheet.noReferenceArtists")}
                 </p>
               ) : (
                 <ul className="appearance-list">
@@ -553,7 +549,7 @@ export default function VenueSheet({
                         onClick={() => removeArtist(appearance.artist_id)}
                         disabled={busy}
                       >
-                        Remove
+                        {t("venueSheet.remove")}
                       </button>
                     </li>
                   ))}
@@ -561,14 +557,14 @@ export default function VenueSheet({
               )}
               <div className="appearance-add">
                 <input
-                  aria-label="Artist name"
-                  placeholder="Artist"
+                  aria-label={t("venueSheet.artistName")}
+                  placeholder={t("venueSheet.artistPlaceholder")}
                   value={artistName}
                   onChange={(e) => setArtistName(e.target.value)}
                 />
                 <input
-                  aria-label="Year or edition"
-                  placeholder="Year / edition"
+                  aria-label={t("venueSheet.yearOrEdition")}
+                  placeholder={t("venueSheet.yearEditionPlaceholder")}
                   className="appearance-year-input"
                   value={artistYear}
                   onChange={(e) => setArtistYear(e.target.value)}
@@ -579,7 +575,7 @@ export default function VenueSheet({
                   onClick={addArtist}
                   disabled={busy || !artistName.trim()}
                 >
-                  Add
+                  {t("common.add")}
                 </button>
               </div>
             </section>
@@ -598,7 +594,11 @@ export default function VenueSheet({
 
           <div className="sheet-actions">
             <button type="submit" className="sheet-save" disabled={busy}>
-              {busy ? "Saving…" : venue ? "Save changes" : "Add venue"}
+              {busy
+                ? t("common.saving")
+                : venue
+                  ? t("venueSheet.saveChanges")
+                  : t("venueSheet.addVenue")}
             </button>
             {venue && !confirmingDelete && (
               <button
@@ -606,26 +606,26 @@ export default function VenueSheet({
                 className="sheet-delete"
                 onClick={() => setConfirmingDelete(true)}
               >
-                Delete venue
+                {t("venueSheet.deleteVenue")}
               </button>
             )}
             {venue && confirmingDelete && (
               <div className="sheet-confirm">
-                <span>Delete this venue for good?</span>
+                <span>{t("venueSheet.deleteConfirm")}</span>
                 <button
                   type="button"
                   className="sheet-delete sheet-delete-confirm"
                   onClick={removeVenue}
                   disabled={busy}
                 >
-                  Delete
+                  {t("common.delete")}
                 </button>
                 <button
                   type="button"
                   className="sheet-keep"
                   onClick={() => setConfirmingDelete(false)}
                 >
-                  Keep
+                  {t("venueSheet.keep")}
                 </button>
               </div>
             )}

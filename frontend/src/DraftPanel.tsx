@@ -6,7 +6,8 @@ import {
   generateDraft,
   updateDraft,
 } from "./api";
-import { DRAFT_STATUS_LABELS, type DraftStatus, type EmailDraft } from "./types";
+import { type DraftStatus, type EmailDraft } from "./types";
+import { useT } from "./i18n";
 import "./DraftPanel.css";
 
 interface DraftPanelProps {
@@ -33,6 +34,7 @@ export default function DraftPanel({
   onVenueChanged,
   onUnauthorized,
 }: DraftPanelProps) {
+  const t = useT();
   const [drafts, setDrafts] = useState<EmailDraft[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [subject, setSubject] = useState("");
@@ -54,7 +56,7 @@ export default function DraftPanel({
     if (err instanceof UnauthorizedError) {
       onUnauthorized();
     } else {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : t("draftPanel.errorGeneric"));
     }
     setBusy(false);
   }
@@ -176,23 +178,20 @@ export default function DraftPanel({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      setError("Couldn’t copy — select the text and copy it by hand.");
+      setError(t("draftPanel.copyError"));
     }
   }
 
   return (
-    <section className="draft-panel" aria-label="Pitch draft">
-      <h3 className="sheet-legend">Pitch draft</h3>
+    <section className="draft-panel" aria-label={t("draftPanel.ariaLabel")}>
+      <h3 className="sheet-legend">{t("draftPanel.heading")}</h3>
 
       {loading ? (
-        <p className="draft-empty">Loading drafts…</p>
+        <p className="draft-empty">{t("draftPanel.loading")}</p>
       ) : (
         <>
           {drafts.length === 0 && (
-            <p className="draft-empty">
-              No draft yet. Generate one from the band’s template — you’ll edit
-              and check it before anything is sent.
-            </p>
+            <p className="draft-empty">{t("draftPanel.emptyState")}</p>
           )}
 
           {drafts.length > 1 && (
@@ -208,7 +207,7 @@ export default function DraftPanel({
                 >
                   {formatCreated(draft.created_at)}
                   <span className={`draft-tab-status draft-status--${draft.status}`}>
-                    {DRAFT_STATUS_LABELS[draft.status]}
+                    {t(`draftStatus.${draft.status}`)}
                   </span>
                 </button>
               ))}
@@ -217,29 +216,25 @@ export default function DraftPanel({
 
           {active && (
             <div className="draft-editor">
-              <p className="draft-verify">
-                Check the opening line — it must name a real artist from this
-                venue’s programme — then edit freely. The app never sends;
-                copy the text into your mail client to send it yourself.
-              </p>
+              <p className="draft-verify">{t("draftPanel.verifyNotice")}</p>
               {active.source && (
                 <p className="draft-source">
-                  Opening line grounded in{" "}
+                  {t("draftPanel.sourcePrefix")}{" "}
                   <a href={active.source} target="_blank" rel="noreferrer">
-                    this source
+                    {t("draftPanel.sourceLink")}
                   </a>{" "}
-                  — confirm it before sending.
+                  {t("draftPanel.sourceSuffix")}
                 </p>
               )}
               <label className="field field-wide">
-                <span>Subject</span>
+                <span>{t("draftPanel.subjectLabel")}</span>
                 <input
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                 />
               </label>
               <label className="field field-wide">
-                <span>Body</span>
+                <span>{t("draftPanel.bodyLabel")}</span>
                 <textarea
                   className="draft-body"
                   value={body}
@@ -250,7 +245,7 @@ export default function DraftPanel({
 
               <div className="draft-status-row">
                 <span className="draft-status-label">
-                  Status: {DRAFT_STATUS_LABELS[active.status]}
+                  {t("draftPanel.statusLabel")} {t(`draftStatus.${active.status}`)}
                 </span>
                 {active.status !== "approved" && active.status !== "sent" && (
                   <button
@@ -259,7 +254,7 @@ export default function DraftPanel({
                     disabled={busy}
                     onClick={() => setStatus("approved")}
                   >
-                    Mark approved
+                    {t("draftPanel.markApproved")}
                   </button>
                 )}
                 {active.status !== "sent" && (
@@ -268,9 +263,9 @@ export default function DraftPanel({
                     className="draft-btn"
                     disabled={busy}
                     onClick={() => setStatus("sent")}
-                    title="Records that you sent this pitch and moves the card to Sent"
+                    title={t("draftPanel.markSentTitle")}
                   >
-                    Mark sent
+                    {t("draftPanel.markSent")}
                   </button>
                 )}
               </div>
@@ -287,12 +282,12 @@ export default function DraftPanel({
               onClick={generate}
             >
               {generating
-                ? "Searching their line-up…"
+                ? t("draftPanel.generating")
                 : busy
-                  ? "Working…"
+                  ? t("draftPanel.working")
                   : drafts.length === 0
-                    ? "Draft email"
-                    : "Draft another"}
+                    ? t("draftPanel.draftEmail")
+                    : t("draftPanel.draftAnother")}
             </button>
             {active && (
               <>
@@ -302,7 +297,7 @@ export default function DraftPanel({
                   disabled={busy || !dirty}
                   onClick={save}
                 >
-                  {dirty ? "Save changes" : "Saved"}
+                  {dirty ? t("draftPanel.saveChanges") : t("draftPanel.saved")}
                 </button>
                 <button
                   type="button"
@@ -310,20 +305,20 @@ export default function DraftPanel({
                   onClick={openInEmail}
                   title={
                     contactEmail
-                      ? `Open a new email to ${contactEmail}, prefilled`
-                      : "Open a new prefilled email (add the recipient yourself)"
+                      ? t("draftPanel.openEmailTitleTo", { email: contactEmail })
+                      : t("draftPanel.openEmailTitleNoContact")
                   }
                 >
-                  Open in email
+                  {t("draftPanel.openInEmail")}
                 </button>
                 <button
                   type="button"
                   className="draft-btn"
                   disabled={busy}
                   onClick={copy}
-                  title="Copy the subject and body to paste elsewhere"
+                  title={t("draftPanel.copyTitle")}
                 >
-                  {copied ? "Copied" : "Copy"}
+                  {copied ? t("draftPanel.copied") : t("draftPanel.copy")}
                 </button>
                 <button
                   type="button"
@@ -331,7 +326,7 @@ export default function DraftPanel({
                   disabled={busy}
                   onClick={remove}
                 >
-                  Delete
+                  {t("common.delete")}
                 </button>
               </>
             )}

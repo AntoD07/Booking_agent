@@ -1,12 +1,19 @@
+import secrets
+
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.config import cookie_secure
+from app.config import app_password, cookie_secure
 from app.db import get_db
 from app.models import Band
-from app.passwords import verify_password
-from app.schemas import LoginRequest, SessionOut
+from app.passwords import hash_password, verify_password
+from app.schemas import (
+    LoginRequest,
+    RegisterBandOut,
+    RegisterBandRequest,
+    SessionOut,
+)
 from app.security import (
     SESSION_COOKIE,
     SESSION_MAX_AGE,
@@ -37,6 +44,32 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
         secure=cookie_secure(),
     )
     return {"ok": True}
+
+
+@router.post("/register-band", response_model=RegisterBandOut)
+def register_band(
+    payload: RegisterBandRequest, db: Session = Depends(get_db)
+) -> RegisterBandOut:
+    """Create a band, or reset an existing band's password.
+
+    Gated by the owner secret (APP_PASSWORD) so it can be used from the login
+    screen without shell access — the free hosting tier has no shell. Re-using
+    an existing name (case-insensitive) resets that band's password."""
+    expected = app_password()
+    if expected is None:
+        raise HTTPException(status_code=503, detail="APP_PASSWORD is not configured")
+    if not secrets.compare_digest(payload.admin_password.encode(), expected.encode()):
+        raise HTTPException(status_code=401, detail="Wrong owner password")
+    name = payload.band_name.strip()
+    band = db.scalar(select(Band).where(func.lower(Band.name) == name.lower()))
+    created = band is None
+    if band is None:
+        band = Band(name=name, password_hash=hash_password(payload.password))
+        db.add(band)
+    else:
+        band.password_hash = hash_password(payload.password)
+    db.commit()
+    return RegisterBandOut(band_name=name, created=created)
 
 
 @router.post("/logout")

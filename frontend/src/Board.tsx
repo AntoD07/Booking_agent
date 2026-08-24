@@ -1,7 +1,7 @@
 import { useState } from "react";
+import { useI18n, useT, type Lang } from "./i18n";
+import LangSwitcher from "./LangSwitcher";
 import {
-  STATUS_LABELS,
-  TYPE_LABELS,
   VENUE_STATUSES,
   VENUE_TYPES,
   type Venue,
@@ -18,12 +18,7 @@ function distinct(values: (string | null)[]): string[] {
 
 type SortKey = "deadline" | "name" | "country" | "fit";
 
-const SORT_LABELS: Record<SortKey, string> = {
-  deadline: "Deadline",
-  name: "Name",
-  country: "Country",
-  fit: "Fit",
-};
+const SORT_KEYS: SortKey[] = ["deadline", "name", "country", "fit"];
 
 function compareVenues(a: Venue, b: Venue, key: SortKey): number {
   switch (key) {
@@ -75,9 +70,9 @@ function isIncomplete(venue: Venue): boolean {
 }
 
 // Deadlines have month granularity, and the whole board is the 2027 season,
-// so the year is noise — show just "January".
-function formatDeadline(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { month: "long" });
+// so the year is noise — show just the month, in the active language.
+function formatDeadline(iso: string, lang: Lang): string {
+  return new Date(iso).toLocaleDateString(lang, { month: "long" });
 }
 
 interface VenueCardProps {
@@ -97,6 +92,8 @@ function VenueCard({
   onDragStart,
   onDragEnd,
 }: VenueCardProps) {
+  const t = useT();
+  const { lang } = useI18n();
   const place = [venue.city, venue.country].filter(Boolean).join(", ");
   const urgent = isUrgent(venue);
   const flag = urgent
@@ -109,9 +106,9 @@ function VenueCard({
       className={`venue-card${flag}${dragging ? " venue-card--dragging" : ""}`}
       title={
         urgent
-          ? "Application deadline in less than two months"
+          ? t("board.urgentTitle")
           : flag
-            ? "Missing contact or submission deadline"
+            ? t("board.incompleteTitle")
             : undefined
       }
       role="button"
@@ -134,19 +131,21 @@ function VenueCard({
     >
       <h3 className="venue-name">{venue.name}</h3>
       <p className="venue-meta">
-        {TYPE_LABELS[venue.type]}
+        {t(`type.${venue.type}`)}
         {place && ` · ${place}`}
       </p>
       {venue.application_deadline && (
         <p className={`venue-deadline${urgent ? " venue-deadline--urgent" : ""}`}>
-          Apply by {formatDeadline(venue.application_deadline)}
+          {t("board.applyBy", {
+            month: formatDeadline(venue.application_deadline, lang),
+          })}
         </p>
       )}
       {venue.next_action && <p className="venue-action">{venue.next_action}</p>}
       <select
         className="venue-status"
         value={venue.status}
-        aria-label={`Status of ${venue.name}`}
+        aria-label={t("board.statusOf", { name: venue.name })}
         onClick={(event) => event.stopPropagation()}
         onChange={(event) =>
           onStatusChange(venue, event.target.value as VenueStatus)
@@ -154,7 +153,7 @@ function VenueCard({
       >
         {VENUE_STATUSES.map((status) => (
           <option key={status} value={status}>
-            {STATUS_LABELS[status]}
+            {t(`status.${status}`)}
           </option>
         ))}
       </select>
@@ -187,6 +186,7 @@ export default function Board({
   onOpenVenue,
   onStatusChange,
 }: BoardProps) {
+  const t = useT();
   const [typeFilter, setTypeFilter] = useState<VenueType | "">("");
   const [countryFilter, setCountryFilter] = useState("");
   const [regionFilter, setRegionFilter] = useState("");
@@ -235,25 +235,28 @@ export default function Board({
       <header className="board-header">
         <div>
           <p className="board-overline">
-            {bandName ? `${bandName} · Season 2027` : "Season 2027"}
+            {bandName
+              ? t("board.seasonWithBand", { band: bandName })
+              : t("board.season")}
           </p>
-          <h1 className="board-title">Venues</h1>
+          <h1 className="board-title">{t("board.title")}</h1>
         </div>
         <div className="board-actions">
+          <LangSwitcher />
           <button className="board-add" onClick={onAddVenue}>
-            Add venue
+            {t("board.addVenue")}
           </button>
           <button className="board-scan" onClick={onOpenScan}>
-            Manual scan
+            {t("board.manualScan")}
           </button>
           <button className="board-scan" onClick={onOpenResearch}>
-            Search &amp; fill
+            {t("board.searchFill")}
           </button>
           <button className="board-scan" onClick={onOpenProfile}>
-            Band profile
+            {t("board.bandProfile")}
           </button>
           <button className="board-signout" onClick={onSignOut}>
-            Sign out
+            {t("board.signOut")}
           </button>
         </div>
       </header>
@@ -261,23 +264,23 @@ export default function Board({
         <select
           className="board-filter"
           value={typeFilter}
-          aria-label="Filter by type"
+          aria-label={t("board.filterByType")}
           onChange={(e) => setTypeFilter(e.target.value as VenueType | "")}
         >
-          <option value="">All types</option>
+          <option value="">{t("board.allTypes")}</option>
           {VENUE_TYPES.map((type) => (
             <option key={type} value={type}>
-              {TYPE_LABELS[type]}
+              {t(`type.${type}`)}
             </option>
           ))}
         </select>
         <select
           className="board-filter"
           value={countryFilter}
-          aria-label="Filter by country"
+          aria-label={t("board.filterByCountry")}
           onChange={(e) => setCountryFilter(e.target.value)}
         >
-          <option value="">All countries</option>
+          <option value="">{t("board.allCountries")}</option>
           {countries.map((country) => (
             <option key={country} value={country}>
               {country}
@@ -287,10 +290,10 @@ export default function Board({
         <select
           className="board-filter"
           value={regionFilter}
-          aria-label="Filter by region"
+          aria-label={t("board.filterByRegion")}
           onChange={(e) => setRegionFilter(e.target.value)}
         >
-          <option value="">All regions</option>
+          <option value="">{t("board.allRegions")}</option>
           {regions.map((region) => (
             <option key={region} value={region}>
               {region}
@@ -300,12 +303,12 @@ export default function Board({
         <select
           className="board-filter"
           value={sortKey}
-          aria-label="Sort venues by"
+          aria-label={t("board.sortBy")}
           onChange={(e) => setSortKey(e.target.value as SortKey)}
         >
-          {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+          {SORT_KEYS.map((key) => (
             <option key={key} value={key}>
-              Sort: {SORT_LABELS[key]}
+              {t("board.sortPrefix", { label: t(`board.sort.${key}`) })}
             </option>
           ))}
         </select>
@@ -318,18 +321,20 @@ export default function Board({
               setRegionFilter("");
             }}
           >
-            Clear · {filtered.length} of {venues.length}
+            {t("board.clearFilters", {
+              shown: filtered.length,
+              total: venues.length,
+            })}
           </button>
         )}
       </div>
       <p className="board-legend">
-        <span className="legend-swatch legend-urgent" /> deadline under two
-        months
-        <span className="legend-swatch legend-incomplete" /> contact or
-        deadline missing
+        <span className="legend-swatch legend-urgent" /> {t("board.legendUrgent")}
+        <span className="legend-swatch legend-incomplete" />{" "}
+        {t("board.legendIncomplete")}
       </p>
       {error && <p className="board-error">{error}</p>}
-      <main className="board" aria-label="Booking pipeline">
+      <main className="board" aria-label={t("board.pipeline")}>
         {VENUE_STATUSES.map((status) => {
           const column = filtered.filter((venue) => venue.status === status);
           // Highlight a column as a drop target, but not the card's own column.
@@ -358,11 +363,11 @@ export default function Board({
               }}
             >
               <h2 className="column-title">
-                {STATUS_LABELS[status]}
+                {t(`status.${status}`)}
                 <span className="column-count">{column.length}</span>
               </h2>
               {column.length === 0 ? (
-                <p className="column-empty">—</p>
+                <p className="column-empty">{t("common.none")}</p>
               ) : (
                 column.map((venue) => (
                   <VenueCard

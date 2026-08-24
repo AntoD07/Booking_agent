@@ -10,17 +10,13 @@ import {
 } from "./api";
 import BandProfileSheet from "./BandProfileSheet";
 import Board from "./Board";
+import { useT } from "./i18n";
 import Login from "./Login";
 import ManualScan from "./ManualScan";
 import ResearchDialog from "./ResearchDialog";
 import Toast from "./Toast";
 import VenueSheet from "./VenueSheet";
-import {
-  STATUS_LABELS,
-  type ResearchRun,
-  type Venue,
-  type VenueStatus,
-} from "./types";
+import { type ResearchRun, type Venue, type VenueStatus } from "./types";
 
 type Session = "checking" | "anonymous" | "authenticated";
 type View = "board" | "scan";
@@ -29,18 +25,22 @@ const RESEARCH_POLL_MS = 4000;
 // Server-side runs are capped at ten minutes; stop polling well after that.
 const RESEARCH_MAX_WAIT_MS = 12 * 60 * 1000;
 
-function researchDoneText(run: ResearchRun): string {
+type T = (key: string, vars?: Record<string, string | number>) => string;
+
+function researchDoneText(run: ResearchRun, t: T): string {
   if (run.status === "failed") {
-    return "Search & fill couldn’t finish — open it for details";
+    return t("app.researchFailed");
   }
   if (run.fields_filled > 0) {
-    const n = run.fields_filled;
-    return `Search & fill done — ${n} field${n === 1 ? "" : "s"} filled`;
+    return run.fields_filled === 1
+      ? t("app.researchDoneOne")
+      : t("app.researchDoneMany", { n: run.fields_filled });
   }
-  return "Search & fill done — nothing new to add";
+  return t("app.researchDoneNothing");
 }
 
 export default function App() {
+  const t = useT();
   const [session, setSession] = useState<Session>("checking");
   const [bandName, setBandName] = useState("");
   const [view, setView] = useState<View>("board");
@@ -68,9 +68,9 @@ export default function App() {
     if (err instanceof UnauthorizedError) {
       setSession("anonymous");
     } else {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : t("app.somethingWrong"));
     }
-  }, []);
+  }, [t]);
 
   const loadVenues = useCallback(async () => {
     try {
@@ -145,7 +145,7 @@ export default function App() {
       if (updated.status === "completed" && updated.fields_filled > 0) {
         loadVenues();
       }
-      showToast(researchDoneText(updated));
+      showToast(researchDoneText(updated, t));
     };
 
     loop();
@@ -223,7 +223,12 @@ export default function App() {
           try {
             await updateVenue(venue.id, { status });
             await loadVenues();
-            showToast(`“${venue.name}” moved to ${STATUS_LABELS[status]}`);
+            showToast(
+              t("app.movedTo", {
+                name: venue.name,
+                status: t(`status.${status}`),
+              }),
+            );
           } catch (err) {
             handleError(err);
           }

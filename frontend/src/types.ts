@@ -46,7 +46,9 @@ export interface VenueArtistAppearance {
   year: string | null;
 }
 
-/** Payload for creating or updating a venue — everything but id/artists. */
+/** Payload for creating or updating a venue — everything but id/artists.
+ * fit_score and last_contact stay server-side but are no longer edited in
+ * the sheet, so the payload omits them (PATCH leaves absent fields alone). */
 export interface VenueInput {
   name: string;
   type: VenueType;
@@ -54,7 +56,6 @@ export interface VenueInput {
   region: string | null;
   city: string | null;
   status: VenueStatus;
-  fit_score: number | null;
   booking_contact: string | null;
   contact_email: string | null;
   application_method: string | null;
@@ -63,7 +64,6 @@ export interface VenueInput {
   event_dates: string | null;
   website: string | null;
   research_notes: string | null;
-  last_contact: string | null;
   next_action: string | null;
   source: string | null;
   added_by: string | null;

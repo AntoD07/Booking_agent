@@ -22,7 +22,7 @@ const core: Record<Lang, Record<string, string>> = {
 
     // Venue statuses
     "status.discovered": "Repéré",
-    "status.researched": "Étudié",
+    "status.researched": "Retenu",
     "status.draft_ready": "Brouillon prêt",
     "status.sent": "Envoyé",
     "status.follow_up": "Relance",
@@ -85,7 +85,8 @@ const core: Record<Lang, Record<string, string>> = {
     "board.sort.deadline": "Échéance",
     "board.sort.name": "Nom",
     "board.sort.country": "Pays",
-    "board.sort.fit": "Affinité",
+    "board.vet": "Retenir ce lieu",
+    "board.vetTitle": "Déplacer vers Retenu — validé, à démarcher",
     "board.clearFilters": "Effacer · {shown} sur {total}",
     "board.legendUrgent": "échéance sous deux mois",
     "board.legendIncomplete": "contact ou échéance manquant",
@@ -102,6 +103,11 @@ const core: Record<Lang, Record<string, string>> = {
     "app.researchDoneNothing": "Recherche & remplissage terminée — rien de nouveau",
     "app.movedTo": "« {name} » déplacé vers {status}",
     "app.somethingWrong": "Une erreur est survenue",
+
+    // Added after the generated files: sheet links + artist findings
+    "venueSheet.openLink": "ouvrir",
+    "venueSheet.writeLink": "écrire",
+    "researchDialog.field.artist": "A joué ici",
   },
   en: {
     "common.close": "Close",
@@ -116,7 +122,7 @@ const core: Record<Lang, Record<string, string>> = {
     "lang.label": "Language",
 
     "status.discovered": "Discovered",
-    "status.researched": "Researched",
+    "status.researched": "Vetted",
     "status.draft_ready": "Draft ready",
     "status.sent": "Sent",
     "status.follow_up": "Follow-up",
@@ -174,7 +180,8 @@ const core: Record<Lang, Record<string, string>> = {
     "board.sort.deadline": "Deadline",
     "board.sort.name": "Name",
     "board.sort.country": "Country",
-    "board.sort.fit": "Fit",
+    "board.vet": "Move to Vetted",
+    "board.vetTitle": "Move to Vetted — checked out, worth pitching",
     "board.clearFilters": "Clear · {shown} of {total}",
     "board.legendUrgent": "deadline under two months",
     "board.legendIncomplete": "contact or deadline missing",
@@ -190,6 +197,10 @@ const core: Record<Lang, Record<string, string>> = {
     "app.researchDoneNothing": "Search & fill done — nothing new to add",
     "app.movedTo": "“{name}” moved to {status}",
     "app.somethingWrong": "Something went wrong",
+
+    "venueSheet.openLink": "open",
+    "venueSheet.writeLink": "write",
+    "researchDialog.field.artist": "Played here",
   },
   es: {
     "common.close": "Cerrar",
@@ -204,7 +215,7 @@ const core: Record<Lang, Record<string, string>> = {
     "lang.label": "Idioma",
 
     "status.discovered": "Descubierto",
-    "status.researched": "Investigado",
+    "status.researched": "Seleccionado",
     "status.draft_ready": "Borrador listo",
     "status.sent": "Enviado",
     "status.follow_up": "Seguimiento",
@@ -262,7 +273,8 @@ const core: Record<Lang, Record<string, string>> = {
     "board.sort.deadline": "Fecha límite",
     "board.sort.name": "Nombre",
     "board.sort.country": "País",
-    "board.sort.fit": "Afinidad",
+    "board.vet": "Mover a Seleccionado",
+    "board.vetTitle": "Mover a Seleccionado — validado, listo para contactar",
     "board.clearFilters": "Borrar · {shown} de {total}",
     "board.legendUrgent": "fecha límite en menos de dos meses",
     "board.legendIncomplete": "falta contacto o fecha límite",
@@ -278,6 +290,10 @@ const core: Record<Lang, Record<string, string>> = {
     "app.researchDoneNothing": "Buscar y rellenar completado — nada nuevo que añadir",
     "app.movedTo": "«{name}» movido a {status}",
     "app.somethingWrong": "Algo salió mal",
+
+    "venueSheet.openLink": "abrir",
+    "venueSheet.writeLink": "escribir",
+    "researchDialog.field.artist": "Tocó aquí",
   },
 };
 

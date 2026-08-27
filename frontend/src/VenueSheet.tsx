@@ -118,6 +118,8 @@ export default function VenueSheet({
   const t = useT();
   const { lang } = useI18n();
   const [form, setForm] = useState<FormState>(() => initForm(venue));
+  // What the form looked like on open; closing with unsaved edits asks first.
+  const [initialForm] = useState<FormState>(() => initForm(venue));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -211,6 +213,15 @@ export default function VenueSheet({
     }
   }
 
+  function requestClose() {
+    // Field edits only persist via Save; a stray tap on the backdrop must
+    // not silently discard them.
+    const dirty = JSON.stringify(form) !== JSON.stringify(initialForm);
+    if (!dirty || window.confirm(t("venueSheet.discardConfirm"))) {
+      onClose();
+    }
+  }
+
   async function removeVenue() {
     if (!venue) return;
     setBusy(true);
@@ -224,7 +235,7 @@ export default function VenueSheet({
   }
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
+    <div className="sheet-backdrop" onClick={requestClose}>
       <section
         className="sheet"
         role="dialog"
@@ -241,7 +252,7 @@ export default function VenueSheet({
               {venue ? venue.name : t("venueSheet.addVenueTitle")}
             </h2>
           </div>
-          <button type="button" className="sheet-close" onClick={onClose}>
+          <button type="button" className="sheet-close" onClick={requestClose}>
             {t("common.close")}
           </button>
         </header>

@@ -27,7 +27,6 @@ interface FormState {
   type: VenueType;
   status: VenueStatus;
   city: string;
-  region: string;
   country: string;
   booking_contact: string;
   contact_email: string;
@@ -38,7 +37,6 @@ interface FormState {
   event_dates: string;
   website: string;
   research_notes: string;
-  next_action: string;
   source: string;
   added_by: string;
 }
@@ -55,7 +53,6 @@ function initForm(venue: Venue | null): FormState {
     type: venue?.type ?? "venue",
     status: venue?.status ?? "discovered",
     city: venue?.city ?? "",
-    region: venue?.region ?? "",
     country: venue?.country ?? "",
     booking_contact: venue?.booking_contact ?? "",
     contact_email: venue?.contact_email ?? "",
@@ -66,7 +63,6 @@ function initForm(venue: Venue | null): FormState {
     event_dates: venue?.event_dates ?? "",
     website: venue?.website ?? "",
     research_notes: venue?.research_notes ?? "",
-    next_action: venue?.next_action ?? "",
     source: venue?.source ?? "",
     added_by: venue?.added_by ?? "",
   };
@@ -83,7 +79,6 @@ function toPayload(
     type: form.type,
     status: form.status,
     city: text(form.city),
-    region: text(form.region),
     country: text(form.country),
     booking_contact: text(form.booking_contact),
     contact_email: text(form.contact_email),
@@ -97,7 +92,6 @@ function toPayload(
     event_dates: text(form.event_dates),
     website: text(form.website),
     research_notes: text(form.research_notes),
-    next_action: text(form.next_action),
     source: text(form.source),
     added_by: text(form.added_by),
     field_confidence: Object.keys(confidence).length ? confidence : null,
@@ -299,14 +293,6 @@ export default function VenueSheet({
                 />
               </label>
               <label className="field">
-                <span>{t("venueSheet.region")}{confidenceDot("region")}</span>
-                <input
-                  value={form.region}
-                  onChange={(e) => set("region", e.target.value)}
-                  placeholder={t("venueSheet.regionPlaceholder")}
-                />
-              </label>
-              <label className="field">
                 <span>{t("venueSheet.country")}{confidenceDot("country")}</span>
                 <input
                   value={form.country}
@@ -448,13 +434,6 @@ export default function VenueSheet({
                   value={form.research_notes}
                   onChange={(e) => set("research_notes", e.target.value)}
                   rows={4}
-                />
-              </label>
-              <label className="field field-wide">
-                <span>{t("venueSheet.nextAction")}{confidenceDot("next_action")}</span>
-                <input
-                  value={form.next_action}
-                  onChange={(e) => set("next_action", e.target.value)}
                 />
               </label>
               <label className="field">

@@ -81,8 +81,9 @@ export default function App() {
     }
   }, [handleError]);
 
-  // Open the dialog and, unless a run is already going, start a fresh one.
-  const openResearch = useCallback(async () => {
+  // Open the dialog and, unless a run is already going, start a fresh one
+  // researching the given venue (each card carries its own Search & fill).
+  const openResearch = useCallback(async (venueId: number) => {
     setResearchOpen(true);
     if (researchRun?.status === "running") {
       return; // a run is in flight; just show it
@@ -90,7 +91,7 @@ export default function App() {
     setResearchError(null);
     setResearchRun(null);
     try {
-      setResearchRun(await startResearch());
+      setResearchRun(await startResearch(venueId));
     } catch (err) {
       if (err instanceof UnauthorizedError) {
         setSession("anonymous");
@@ -216,7 +217,7 @@ export default function App() {
         }}
         onAddVenue={() => setActive("new")}
         onOpenScan={() => setView("scan")}
-        onOpenResearch={openResearch}
+        onResearchVenue={(venue) => openResearch(venue.id)}
         onOpenProfile={() => setProfileOpen(true)}
         onOpenVenue={(venue) => setActive(venue)}
         onStatusChange={async (venue: Venue, status: VenueStatus) => {

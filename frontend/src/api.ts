@@ -178,8 +178,12 @@ export function acceptSuggestion(
 }
 
 /** Start a Search & fill run (or get the one already running); poll after. */
-export function startResearch(): Promise<ResearchRun> {
-  return request("/api/research/runs", { method: "POST" });
+/** Research one venue (each card carries its own Search & fill). */
+export function startResearch(venueId: number): Promise<ResearchRun> {
+  return request("/api/research/runs", {
+    method: "POST",
+    body: JSON.stringify({ venue_id: venueId }),
+  });
 }
 
 export function fetchResearchRun(id: number): Promise<ResearchRun> {

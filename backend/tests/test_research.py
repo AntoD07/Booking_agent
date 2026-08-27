@@ -444,3 +444,61 @@ def test_reference_artist_names_are_band_scoped(band):
         names = enrichment.reference_artist_names(db, band.id)
         assert names == ["Mustaka"]
         assert enrichment.reference_artist_names(db, band.id + 999) == []
+
+
+def test_run_targets_the_requested_venue_only(auth_client, band, monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    with SessionLocal() as db:
+        target = _make_venue(db, band.id, name="Cible Club")
+        other = _make_venue(db, band.id, name="Autre Fest")
+        # Even a fully-complete, recently-researched venue is researched when
+        # asked for explicitly — the card button must always work.
+        target.website = "https://cible.example"
+        target.contact_email = "prog@cible.example"
+        target.application_method = "Email"
+        target.last_researched = datetime.now(timezone.utc)
+        db.commit()
+        ids = {"target": target.id, "other": other.id}
+
+    seen = {}
+
+    def fake_batch(payload, progress=None, api_key=None, reference_artists=None):
+        seen["ids"] = [item["id"] for item in payload]
+        return [
+            {
+                "venue_id": ids["target"],
+                "field": "event_dates",
+                "value": "24-27 June 2027",
+                "confidence": "high",
+                "source": "https://cible.example/2027",
+            }
+        ]
+
+    monkeypatch.setattr(enrichment, "research_batch", fake_batch)
+    response = auth_client.post(
+        "/api/research/runs", json={"venue_id": ids["target"]}
+    )
+    assert response.status_code == 202
+    run = auth_client.get(f"/api/research/runs/{response.json()['id']}").json()
+    assert run["status"] == "completed"
+    assert seen["ids"] == [ids["target"]]  # only the requested venue
+    with SessionLocal() as db:
+        assert db.get(Venue, ids["target"]).event_dates == "24-27 June 2027"
+
+
+def test_run_rejects_another_bands_venue(auth_client, band, monkeypatch):
+    from app.models import Band
+    from app.passwords import hash_password
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    with SessionLocal() as db:
+        rival = Band(name="Rival Band", password_hash=hash_password("x"))
+        db.add(rival)
+        db.flush()
+        foreign = _make_venue(db, rival.id, name="Foreign Venue")
+        db.commit()
+        foreign_id = foreign.id
+    response = auth_client.post(
+        "/api/research/runs", json={"venue_id": foreign_id}
+    )
+    assert response.status_code == 404

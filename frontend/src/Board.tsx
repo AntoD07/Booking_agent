@@ -74,6 +74,7 @@ interface VenueCardProps {
   dragging: boolean;
   onOpen: (venue: Venue) => void;
   onStatusChange: (venue: Venue, status: VenueStatus) => void;
+  onResearch: (venue: Venue) => void;
   onDragStart: (venue: Venue) => void;
   onDragEnd: () => void;
 }
@@ -83,6 +84,7 @@ function VenueCard({
   dragging,
   onOpen,
   onStatusChange,
+  onResearch,
   onDragStart,
   onDragEnd,
 }: VenueCardProps) {
@@ -135,20 +137,32 @@ function VenueCard({
           })}
         </p>
       )}
-      {venue.next_action && <p className="venue-action">{venue.next_action}</p>}
-      {venue.status === "discovered" && (
+      <div className="venue-card-actions">
         <button
           type="button"
-          className="venue-vet"
-          title={t("board.vetTitle")}
+          className="venue-research"
+          title={t("board.searchFillTitle")}
           onClick={(event) => {
             event.stopPropagation();
-            onStatusChange(venue, "researched");
+            onResearch(venue);
           }}
         >
-          {t("board.vet")} →
+          {t("board.searchFill")}
         </button>
-      )}
+        {venue.status === "discovered" && (
+          <button
+            type="button"
+            className="venue-vet"
+            title={t("board.vetTitle")}
+            onClick={(event) => {
+              event.stopPropagation();
+              onStatusChange(venue, "researched");
+            }}
+          >
+            {t("board.vet")} →
+          </button>
+        )}
+      </div>
       <select
         className="venue-status"
         value={venue.status}
@@ -175,7 +189,7 @@ interface BoardProps {
   onSignOut: () => void;
   onAddVenue: () => void;
   onOpenScan: () => void;
-  onOpenResearch: () => void;
+  onResearchVenue: (venue: Venue) => void;
   onOpenProfile: () => void;
   onOpenVenue: (venue: Venue) => void;
   onStatusChange: (venue: Venue, status: VenueStatus) => void;
@@ -188,7 +202,7 @@ export default function Board({
   onSignOut,
   onAddVenue,
   onOpenScan,
-  onOpenResearch,
+  onResearchVenue,
   onOpenProfile,
   onOpenVenue,
   onStatusChange,
@@ -196,7 +210,6 @@ export default function Board({
   const t = useT();
   const [typeFilter, setTypeFilter] = useState<VenueType | "">("");
   const [countryFilter, setCountryFilter] = useState("");
-  const [regionFilter, setRegionFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("deadline");
   // Drag-and-drop between columns (desktop): the card being dragged and the
   // column currently under the cursor.
@@ -226,16 +239,14 @@ export default function Board({
   };
 
   const countries = distinct(venues.map((venue) => venue.country));
-  const regions = distinct(venues.map((venue) => venue.region));
   const filtered = venues
     .filter(
       (venue) =>
         (!typeFilter || venue.type === typeFilter) &&
-        (!countryFilter || venue.country === countryFilter) &&
-        (!regionFilter || venue.region === regionFilter),
+        (!countryFilter || venue.country === countryFilter),
     )
     .sort((a, b) => compareVenues(a, b, sortKey));
-  const filtering = Boolean(typeFilter || countryFilter || regionFilter);
+  const filtering = Boolean(typeFilter || countryFilter);
 
   return (
     <div className="board-page">
@@ -255,9 +266,6 @@ export default function Board({
           </button>
           <button className="board-scan" onClick={onOpenScan}>
             {t("board.manualScan")}
-          </button>
-          <button className="board-scan" onClick={onOpenResearch}>
-            {t("board.searchFill")}
           </button>
           <button className="board-scan" onClick={onOpenProfile}>
             {t("board.bandProfile")}
@@ -296,19 +304,6 @@ export default function Board({
         </select>
         <select
           className="board-filter"
-          value={regionFilter}
-          aria-label={t("board.filterByRegion")}
-          onChange={(e) => setRegionFilter(e.target.value)}
-        >
-          <option value="">{t("board.allRegions")}</option>
-          {regions.map((region) => (
-            <option key={region} value={region}>
-              {region}
-            </option>
-          ))}
-        </select>
-        <select
-          className="board-filter"
           value={sortKey}
           aria-label={t("board.sortBy")}
           onChange={(e) => setSortKey(e.target.value as SortKey)}
@@ -325,7 +320,6 @@ export default function Board({
             onClick={() => {
               setTypeFilter("");
               setCountryFilter("");
-              setRegionFilter("");
             }}
           >
             {t("board.clearFilters", {
@@ -383,6 +377,7 @@ export default function Board({
                     dragging={venue.id === draggingId}
                     onOpen={onOpenVenue}
                     onStatusChange={onStatusChange}
+                    onResearch={onResearchVenue}
                     onDragStart={(v) => setDraggingId(v.id)}
                     onDragEnd={endDrag}
                   />

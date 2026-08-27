@@ -61,7 +61,7 @@ def test_generate_french_draft_moves_card_to_draft_ready(
     response = auth_client.post(f"/api/venues/{vid}/drafts")
     assert response.status_code == 201
     draft = response.json()
-    assert draft["subject"].startswith("Gipsy Tonic — Candidature Jazz à Vienne 2027")
+    assert draft["subject"].startswith("Gipsy Tonic : Candidature Jazz à Vienne 2027")
     # French, fixed prose, and the bracketed hook to fill in by hand.
     assert "On s'appelle Gipsy Tonic" in draft["body"]
     assert "À COMPLÉTER" in draft["body"]

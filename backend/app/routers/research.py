@@ -10,7 +10,7 @@ from app import enrichment
 from app.config import anthropic_api_key
 from app.db import SessionLocal, get_db
 from app.models import Band, ResearchRun, Venue, VenueStatus
-from app.schemas import ResearchRunOut, StaleDatesReset
+from app.schemas import ResearchRunOut, ResearchStartIn, StaleDatesReset
 from app.security import current_band
 
 logger = logging.getLogger(__name__)
@@ -91,7 +91,9 @@ def _mark_failed(run_id: int, error: str) -> None:
             db.commit()
 
 
-def _run_research(run_id: int, band_id: int, api_key: str | None) -> None:
+def _run_research(
+    run_id: int, band_id: int, api_key: str | None, venue_id: int | None = None
+) -> None:
     """Background job: research a batch of the band's venues and record it.
 
     Every database touch uses its own short-lived session, so no connection is
@@ -105,7 +107,17 @@ def _run_research(run_id: int, band_id: int, api_key: str | None) -> None:
             run = db.get(ResearchRun, run_id)
             if run is None:
                 return
-            venues = enrichment.select_venues(db, band_id)
+            if venue_id is not None:
+                # An explicit per-card request researches that venue, full
+                # stop — no cooldown, even if nothing looks missing.
+                venue = db.scalar(
+                    select(Venue).where(
+                        Venue.band_id == band_id, Venue.id == venue_id
+                    )
+                )
+                venues = [venue] if venue is not None else []
+            else:
+                venues = enrichment.select_venues(db, band_id)
             if not venues:
                 run.status = "completed"
                 run.summary = (
@@ -195,12 +207,21 @@ def _run_out(run: ResearchRun) -> ResearchRunOut:
 @router.post("/runs", response_model=ResearchRunOut, status_code=202)
 def start_run(
     background_tasks: BackgroundTasks,
+    payload: ResearchStartIn | None = None,
     db: Session = Depends(get_db),
     band: Band = Depends(current_band),
 ) -> ResearchRunOut:
-    """Start a Search & fill run, or return the one already running."""
+    """Start a Search & fill run — for one venue when venue_id is given,
+    otherwise for the neediest batch — or return the one already running."""
     _require_api_key(band)
     _fail_stale_runs(db)
+    venue_id = payload.venue_id if payload else None
+    if venue_id is not None:
+        venue = db.scalar(
+            select(Venue).where(Venue.band_id == band.id, Venue.id == venue_id)
+        )
+        if venue is None:
+            raise HTTPException(status_code=404, detail="Venue not found")
     active = db.scalar(
         select(ResearchRun)
         .where(ResearchRun.band_id == band.id, ResearchRun.status == "running")
@@ -212,7 +233,9 @@ def start_run(
     db.add(run)
     db.commit()
     db.refresh(run)
-    background_tasks.add_task(_run_research, run.id, band.id, _api_key_for(band))
+    background_tasks.add_task(
+        _run_research, run.id, band.id, _api_key_for(band), venue_id
+    )
     return _run_out(run)
 
 

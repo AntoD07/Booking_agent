@@ -279,6 +279,12 @@ class ResearchStarted(BaseModel):
     run_id: int
 
 
+class ResearchStartIn(BaseModel):
+    """Optional target: research this one venue instead of the neediest batch."""
+
+    venue_id: int | None = None
+
+
 class StaleDatesReset(BaseModel):
     """Outcome of clearing Claude-filled dates from a past edition."""
 

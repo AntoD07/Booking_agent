@@ -106,6 +106,8 @@ const core: Record<Lang, Record<string, string>> = {
     "app.somethingWrong": "Une erreur est survenue",
 
     // Added after the generated files: sheet links + artist findings
+    "venueSheet.discardConfirm":
+      "Des modifications ne sont pas enregistrées. Fermer sans enregistrer ?",
     "venueSheet.openLink": "ouvrir",
     "venueSheet.writeLink": "écrire",
     "researchDialog.field.artist": "A joué ici",
@@ -200,6 +202,7 @@ const core: Record<Lang, Record<string, string>> = {
     "app.movedTo": "“{name}” moved to {status}",
     "app.somethingWrong": "Something went wrong",
 
+    "venueSheet.discardConfirm": "You have unsaved changes. Close without saving?",
     "venueSheet.openLink": "open",
     "venueSheet.writeLink": "write",
     "researchDialog.field.artist": "Played here",
@@ -294,6 +297,7 @@ const core: Record<Lang, Record<string, string>> = {
     "app.movedTo": "«{name}» movido a {status}",
     "app.somethingWrong": "Algo salió mal",
 
+    "venueSheet.discardConfirm": "Hay cambios sin guardar. ¿Cerrar sin guardar?",
     "venueSheet.openLink": "abrir",
     "venueSheet.writeLink": "escribir",
     "researchDialog.field.artist": "Tocó aquí",

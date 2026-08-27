@@ -118,6 +118,18 @@
   vertical-align: baseline;
 }
 
+/* Click-through for a filled website ("open") or email ("write"). */
+.field-link {
+  margin-left: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.field-link:hover {
+  text-decoration: underline;
+}
+
 .field input,
 .field select,
 .field textarea {

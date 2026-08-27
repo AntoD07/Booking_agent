@@ -1,10 +1,8 @@
 import { FormEvent, useState } from "react";
 import {
   UnauthorizedError,
-  addAppearance,
   createVenue,
   deleteVenue,
-  removeAppearance,
   updateVenue,
 } from "./api";
 import DraftPanel from "./DraftPanel";
@@ -13,7 +11,6 @@ import {
   VENUE_STATUSES,
   VENUE_TYPES,
   type Venue,
-  type VenueArtistAppearance,
   type VenueInput,
   type VenueStatus,
   type VenueType,
@@ -32,7 +29,6 @@ interface FormState {
   city: string;
   region: string;
   country: string;
-  fit_score: string;
   booking_contact: string;
   contact_email: string;
   application_method: string;
@@ -42,10 +38,15 @@ interface FormState {
   event_dates: string;
   website: string;
   research_notes: string;
-  last_contact: string;
   next_action: string;
   source: string;
   added_by: string;
+}
+
+/** A bare domain like "venue.fr" still needs a scheme to be a valid link. */
+function toHref(url: string): string {
+  const trimmed = url.trim();
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
 function initForm(venue: Venue | null): FormState {
@@ -56,7 +57,6 @@ function initForm(venue: Venue | null): FormState {
     city: venue?.city ?? "",
     region: venue?.region ?? "",
     country: venue?.country ?? "",
-    fit_score: venue?.fit_score != null ? String(venue.fit_score) : "",
     booking_contact: venue?.booking_contact ?? "",
     contact_email: venue?.contact_email ?? "",
     application_method: venue?.application_method ?? "",
@@ -66,7 +66,6 @@ function initForm(venue: Venue | null): FormState {
     event_dates: venue?.event_dates ?? "",
     website: venue?.website ?? "",
     research_notes: venue?.research_notes ?? "",
-    last_contact: venue?.last_contact ?? "",
     next_action: venue?.next_action ?? "",
     source: venue?.source ?? "",
     added_by: venue?.added_by ?? "",
@@ -79,7 +78,6 @@ function toPayload(
   sources: Record<string, string>,
 ): VenueInput {
   const text = (value: string) => value.trim() || null;
-  const score = form.fit_score.trim();
   return {
     name: form.name.trim(),
     type: form.type,
@@ -87,7 +85,6 @@ function toPayload(
     city: text(form.city),
     region: text(form.region),
     country: text(form.country),
-    fit_score: score && !Number.isNaN(Number(score)) ? Number(score) : null,
     booking_contact: text(form.booking_contact),
     contact_email: text(form.contact_email),
     application_method: text(form.application_method),
@@ -100,7 +97,6 @@ function toPayload(
     event_dates: text(form.event_dates),
     website: text(form.website),
     research_notes: text(form.research_notes),
-    last_contact: text(form.last_contact),
     next_action: text(form.next_action),
     source: text(form.source),
     added_by: text(form.added_by),
@@ -131,11 +127,6 @@ export default function VenueSheet({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [appearances, setAppearances] = useState<VenueArtistAppearance[]>(
-    venue?.artists ?? [],
-  );
-  const [artistName, setArtistName] = useState("");
-  const [artistYear, setArtistYear] = useState("");
   // Research-confidence markers for fields filled by Claude. Editing a
   // marked field clears its marker: the value is human-verified from then on.
   const [confidence, setConfidence] = useState<Record<string, string>>(
@@ -221,40 +212,6 @@ export default function VenueSheet({
         await createVenue(payload);
       }
       onSaved();
-    } catch (err) {
-      fail(err);
-    }
-  }
-
-  async function addArtist() {
-    if (!venue || !artistName.trim()) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const updated = await addAppearance(
-        venue.id,
-        artistName.trim(),
-        artistYear.trim() || null,
-      );
-      setAppearances(updated.artists);
-      setArtistName("");
-      setArtistYear("");
-      setBusy(false);
-    } catch (err) {
-      fail(err);
-    }
-  }
-
-  async function removeArtist(artistId: number) {
-    if (!venue) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await removeAppearance(venue.id, artistId);
-      setAppearances((current) =>
-        current.filter((a) => a.artist_id !== artistId),
-      );
-      setBusy(false);
     } catch (err) {
       fail(err);
     }
@@ -442,7 +399,17 @@ export default function VenueSheet({
                 />
               </label>
               <label className="field">
-                <span>{t("venueSheet.email")}{confidenceDot("contact_email")}</span>
+                <span>
+                  {t("venueSheet.email")}{confidenceDot("contact_email")}
+                  {form.contact_email.trim() && (
+                    <a
+                      className="field-link"
+                      href={`mailto:${form.contact_email.trim()}`}
+                    >
+                      {t("venueSheet.writeLink")}
+                    </a>
+                  )}
+                </span>
                 <input
                   value={form.contact_email}
                   onChange={(e) => set("contact_email", e.target.value)}
@@ -450,7 +417,19 @@ export default function VenueSheet({
                 />
               </label>
               <label className="field field-wide">
-                <span>{t("venueSheet.website")}{confidenceDot("website")}</span>
+                <span>
+                  {t("venueSheet.website")}{confidenceDot("website")}
+                  {form.website.trim() && (
+                    <a
+                      className="field-link"
+                      href={toHref(form.website)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {t("venueSheet.openLink")}
+                    </a>
+                  )}
+                </span>
                 <input
                   value={form.website}
                   onChange={(e) => set("website", e.target.value)}
@@ -476,25 +455,6 @@ export default function VenueSheet({
                 <input
                   value={form.next_action}
                   onChange={(e) => set("next_action", e.target.value)}
-                />
-              </label>
-              <label className="field">
-                <span>{t("venueSheet.lastContact")}{confidenceDot("last_contact")}</span>
-                <input
-                  type="date"
-                  value={form.last_contact}
-                  onChange={(e) => set("last_contact", e.target.value)}
-                />
-              </label>
-              <label className="field">
-                <span>{t("venueSheet.fit")}</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={5}
-                  step={0.5}
-                  value={form.fit_score}
-                  onChange={(e) => set("fit_score", e.target.value)}
                 />
               </label>
               <label className="field">
@@ -525,61 +485,6 @@ export default function VenueSheet({
               </label>
             </div>
           </fieldset>
-
-          {venue && (
-            <section className="sheet-section" aria-label={t("venueSheet.whoPlayedHere")}>
-              <h3 className="sheet-legend">{t("venueSheet.whoPlayedHere")}</h3>
-              {appearances.length === 0 ? (
-                <p className="appearance-empty">
-                  {t("venueSheet.noReferenceArtists")}
-                </p>
-              ) : (
-                <ul className="appearance-list">
-                  {appearances.map((appearance) => (
-                    <li className="appearance" key={appearance.artist_id}>
-                      <span className="appearance-name">{appearance.name}</span>
-                      {appearance.year && (
-                        <span className="appearance-year">
-                          {appearance.year}
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        className="appearance-remove"
-                        onClick={() => removeArtist(appearance.artist_id)}
-                        disabled={busy}
-                      >
-                        {t("venueSheet.remove")}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <div className="appearance-add">
-                <input
-                  aria-label={t("venueSheet.artistName")}
-                  placeholder={t("venueSheet.artistPlaceholder")}
-                  value={artistName}
-                  onChange={(e) => setArtistName(e.target.value)}
-                />
-                <input
-                  aria-label={t("venueSheet.yearOrEdition")}
-                  placeholder={t("venueSheet.yearEditionPlaceholder")}
-                  className="appearance-year-input"
-                  value={artistYear}
-                  onChange={(e) => setArtistYear(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="appearance-add-button"
-                  onClick={addArtist}
-                  disabled={busy || !artistName.trim()}
-                >
-                  {t("common.add")}
-                </button>
-              </div>
-            </section>
-          )}
 
           {venue && (
             <DraftPanel

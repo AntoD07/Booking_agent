@@ -16,9 +16,9 @@ function distinct(values: (string | null)[]): string[] {
   );
 }
 
-type SortKey = "deadline" | "name" | "country" | "fit";
+type SortKey = "deadline" | "name" | "country";
 
-const SORT_KEYS: SortKey[] = ["deadline", "name", "country", "fit"];
+const SORT_KEYS: SortKey[] = ["deadline", "name", "country"];
 
 function compareVenues(a: Venue, b: Venue, key: SortKey): number {
   switch (key) {
@@ -38,12 +38,6 @@ function compareVenues(a: Venue, b: Venue, key: SortKey): number {
     case "country":
       return (
         (a.country ?? "￿").localeCompare(b.country ?? "￿") ||
-        a.name.localeCompare(b.name)
-      );
-    case "fit":
-      // Best fit first; unrated venues last.
-      return (
-        (b.fit_score ?? -1) - (a.fit_score ?? -1) ||
         a.name.localeCompare(b.name)
       );
   }
@@ -142,6 +136,19 @@ function VenueCard({
         </p>
       )}
       {venue.next_action && <p className="venue-action">{venue.next_action}</p>}
+      {venue.status === "discovered" && (
+        <button
+          type="button"
+          className="venue-vet"
+          title={t("board.vetTitle")}
+          onClick={(event) => {
+            event.stopPropagation();
+            onStatusChange(venue, "researched");
+          }}
+        >
+          {t("board.vet")} →
+        </button>
+      )}
       <select
         className="venue-status"
         value={venue.status}

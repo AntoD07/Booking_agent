@@ -274,6 +274,25 @@
   padding-top: 0.55rem;
 }
 
+/* One-tap promotion for Discovered cards: vetted, worth pitching. */
+.venue-vet {
+  margin-top: 0.7rem;
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent-soft);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.venue-vet:hover {
+  border-color: var(--accent);
+}
+
 .venue-status {
   margin-top: 0.7rem;
   width: 100%;

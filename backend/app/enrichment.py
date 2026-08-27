@@ -28,7 +28,7 @@ from app.discovery import (
     _create_message,
     _extract_json_array,
 )
-from app.models import ResearchFinding, ResearchRun, Venue, VenueType
+from app.models import Artist, ResearchFinding, ResearchRun, Venue, VenueType
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,9 @@ STALE_RUN_AFTER = timedelta(minutes=15)
 # this when the booking season rolls over.
 TARGET_SEASON_YEAR = 2027
 
-# Venue fields Claude may fill, in the order they should display.
+# Venue fields Claude may fill, in the order they should display. "artist" is
+# not a venue column — an appearance by a tracked reference artist, recorded
+# into the research notes.
 RESEARCHABLE_FIELDS = [
     "website",
     "contact_email",
@@ -58,6 +60,7 @@ RESEARCHABLE_FIELDS = [
     "application_url",
     "application_deadline",
     "event_dates",
+    "artist",
     "note",
 ]
 
@@ -93,6 +96,14 @@ For each venue, use web search to:
    closed January 2026") so we know the usual window.
 3. Note anything important: festival cancelled or paused, renamed, venue
    closed, named programmer, application window intel.
+4. Reference artists — we track these bands, and any venue one of them has
+   played is a qualified lead for us:
+   {artists_line}
+   For each venue, report any of these (or a clearly similar manouche/swing
+   act) that has actually played there — one finding per band with field
+   "artist" and value the band's name, adding the year in parentheses if you
+   know it (e.g. "Mustaka (2023)"). Only report a real, sourced appearance;
+   never guess.
 
 Rules:
 - Only report emails you actually found published — never construct one.
@@ -110,7 +121,7 @@ object per finding, with exactly these keys:
 - "venue_id": the venue's id from the list above (integer)
 - "field": one of "website", "contact_email", "booking_contact",
   "application_method", "application_url", "application_deadline",
-  "event_dates", "note"
+  "event_dates", "artist", "note"
 - "value": the found value (string)
 - "confidence": "high" (published/official) or "medium" (derived/secondary)
 - "source": URL of the page documenting it, or null
@@ -168,6 +179,15 @@ def missing_fields(venue: Venue, today: date | None = None) -> list[str]:
     return missing
 
 
+def reference_artist_names(db: Session, band_id: int) -> list[str]:
+    """The bands this band tracks — venues they played are qualified leads."""
+    return list(
+        db.scalars(
+            select(Artist.name).where(Artist.band_id == band_id).order_by(Artist.name)
+        )
+    )
+
+
 def _record_source(sources: dict, field: str, source: str | None) -> None:
     """Store the source for a field just filled, or drop a stale one.
 
@@ -207,6 +227,7 @@ def research_batch(
     venues_payload: list[dict],
     progress: Progress | None = None,
     api_key: str | None = None,
+    reference_artists: list[str] | None = None,
 ) -> list[dict]:
     """One Claude call researching a batch of venues; returns raw findings."""
     started = time.monotonic()
@@ -221,6 +242,11 @@ def research_batch(
     prompt = _PROMPT.format(
         today=date.today().isoformat(),
         venues_json=json.dumps(venues_payload, ensure_ascii=False, indent=1),
+        artists_line=(
+            ", ".join(reference_artists)
+            if reference_artists
+            else "gypsy-jazz / manouche and swing bands like ours"
+        ),
     )
     client = anthropic.Anthropic(
         api_key=api_key or anthropic_api_key(),
@@ -341,7 +367,21 @@ def apply_findings(
         marks = dict(venue.field_confidence or {})
         sources = dict(venue.field_sources or {})
 
-        if field == "note":
+        if field == "artist":
+            # An appearance by a tracked band goes into the research notes —
+            # the "who played here" intel lives there now.
+            name = value.split("(")[0].strip()
+            base = venue.research_notes or ""
+            if name and name.lower() in base.lower():
+                finding.applied = False  # already noted on this card
+            else:
+                stamp = now.strftime("%b %Y")
+                suffix = f" (source : {source})" if source else ""
+                addition = f"— Recherche ({stamp}) : A joué ici : {value}{suffix}"
+                venue.research_notes = (base + "\n\n" + addition).strip()
+                run.fields_filled += 1
+            finding.old_value = None
+        elif field == "note":
             stamp = now.strftime("%b %Y")
             suffix = f" (source : {source})" if source else ""
             addition = f"— Recherche ({stamp}) : {value}{suffix}"

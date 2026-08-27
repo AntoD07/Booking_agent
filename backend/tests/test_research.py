@@ -43,7 +43,7 @@ def test_run_applies_findings_under_confidence_rules(auth_client, band, monkeypa
         )
         ids = {"empty": empty.id, "protected": protected.id, "old": refreshable.id}
 
-    def fake_batch(payload, progress=None, api_key=None):
+    def fake_batch(payload, progress=None, api_key=None, reference_artists=None):
         assert {item["id"] for item in payload} >= set(ids.values())
         return [
             {
@@ -146,7 +146,7 @@ def test_stale_running_run_is_failed_on_start(auth_client, band, monkeypatch):
         db.commit()
         stale_id = stale.id
     monkeypatch.setattr(
-        enrichment, "research_batch", lambda p, progress=None, api_key=None: []
+        enrichment, "research_batch", lambda p, progress=None, api_key=None, reference_artists=None: []
     )
     response = auth_client.post("/api/research/runs")
     assert response.status_code == 202
@@ -372,7 +372,7 @@ def test_runs_list_returns_findings(auth_client, band, monkeypatch):
     monkeypatch.setattr(
         enrichment,
         "research_batch",
-        lambda p, progress=None, api_key=None: [
+        lambda p, progress=None, api_key=None, reference_artists=None: [
             {
                 "venue_id": vid,
                 "field": "website",
@@ -386,3 +386,61 @@ def test_runs_list_returns_findings(auth_client, band, monkeypatch):
     runs = auth_client.get("/api/research/runs").json()
     assert runs and runs[0]["status"] == "completed"
     assert runs[0]["findings"][0]["venue_name"] == "Listed Fest"
+
+
+def test_artist_finding_lands_in_research_notes(band):
+    with SessionLocal() as db:
+        venue = _make_venue(db, band.id, name="Le Duc des Lombards")
+        _apply(
+            db,
+            band.id,
+            venue,
+            [
+                {
+                    "venue_id": venue.id,
+                    "field": "artist",
+                    "value": "Mustaka (2023)",
+                    "confidence": "high",
+                    "source": "https://duc.example/archive",
+                }
+            ],
+        )
+        refreshed = db.get(Venue, venue.id)
+        # The appearance is recorded in the notes, with its source.
+        assert "A joué ici : Mustaka (2023)" in refreshed.research_notes
+        assert "https://duc.example/archive" in refreshed.research_notes
+        stored = db.scalars(select(ResearchFinding)).all()
+        assert [f.field for f in stored] == ["artist"]
+        assert stored[0].applied is True
+
+
+def test_artist_already_in_notes_is_not_duplicated(band):
+    with SessionLocal() as db:
+        venue = _make_venue(db, band.id, name="Sunset Sunside")
+        finding = {
+            "venue_id": venue.id,
+            "field": "artist",
+            "value": "Djangologists",
+            "confidence": "medium",
+            "source": None,
+        }
+        _apply(db, band.id, venue, [finding])
+        _apply(db, band.id, db.get(Venue, venue.id), [finding])  # found again
+        refreshed = db.get(Venue, venue.id)
+        assert refreshed.research_notes.lower().count("djangologists") == 1
+        artist_findings = [
+            f for f in db.scalars(select(ResearchFinding)) if f.field == "artist"
+        ]
+        # Both findings recorded; the repeat marked not-applied.
+        assert sorted(f.applied for f in artist_findings) == [False, True]
+
+
+def test_reference_artist_names_are_band_scoped(band):
+    from app.models import Artist
+
+    with SessionLocal() as db:
+        db.add(Artist(name="Mustaka", band_id=band.id))
+        db.commit()
+        names = enrichment.reference_artist_names(db, band.id)
+        assert names == ["Mustaka"]
+        assert enrichment.reference_artist_names(db, band.id + 999) == []

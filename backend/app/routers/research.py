@@ -121,6 +121,7 @@ def _run_research(run_id: int, band_id: int, api_key: str | None) -> None:
                 for v in venues
             ]
             venue_ids = [v.id for v in venues]
+            reference_artists = enrichment.reference_artist_names(db, band_id)
 
         _note(run_id, f"Researching {len(payload)} venues…")
 
@@ -129,6 +130,7 @@ def _run_research(run_id: int, band_id: int, api_key: str | None) -> None:
             payload,
             progress=lambda message: _note(run_id, message),
             api_key=api_key,
+            reference_artists=reference_artists,
         )
 
         # 3. Apply findings and finish (fresh session, fresh connection).
@@ -149,11 +151,18 @@ def _run_research(run_id: int, band_id: int, api_key: str | None) -> None:
             kept = sum(1 for f in run.findings if not f.applied)
             updated = sorted({f.venue_name for f in run.findings if f.applied})
             if updated:
-                fields = run.fields_filled
+                artists = sum(
+                    1 for f in run.findings if f.field == "artist" and f.applied
+                )
+                fields = run.fields_filled - artists
+                parts = [f"{fields} field{'s' if fields != 1 else ''} filled"]
+                if artists:
+                    parts.append(
+                        f"{artists} artist appearance{'s' if artists != 1 else ''} noted"
+                    )
                 lead = (
                     f"Updated {len(updated)} of {run.venues_checked} venues "
-                    f"({fields} field{'s' if fields != 1 else ''} filled): "
-                    + ", ".join(updated)
+                    f"({', '.join(parts)}): " + ", ".join(updated)
                 )
             else:
                 lead = f"Checked {run.venues_checked} venues — nothing new to add"

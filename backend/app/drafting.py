@@ -90,7 +90,7 @@ avec une formation atypique (deux guitares manouches, clarinette et basse \
 électrique) : un hommage à Coltrane, Lee Morgan et Django dans un son qui \
 parle autant aux amateurs de manouche qu'au public jazz plus large.
 
-On sort notre premier album, Mixology, en septembre 2026 — huit relectures \
+On sort notre premier album, Mixology, en septembre 2026. Huit relectures \
 acoustiques, du hard bop des années 60 aux compositions de Django, \
 enregistrées dans notre studio R-26 à Lausanne. L'album est aussi un projet \
 visuel : la peintre Tara Harris (Birmingham) a transposé chacun des huit \
@@ -123,7 +123,7 @@ with an unconventional lineup (two manouche guitars, clarinet and electric \
 bass): a tribute to Coltrane, Lee Morgan and Django, in a sound that \
 resonates with manouche lovers and the broader jazz audience alike.
 
-Our debut album, Mixology, is out in September 2026 — eight acoustic \
+Our debut album, Mixology, is out in September 2026. Eight acoustic \
 reinterpretations, from 1960s hard bop to Django's own compositions, recorded \
 at our R-26 studio in Lausanne. The album is also a visual project: painter \
 Tara Harris (Birmingham) translated each of the eight tracks into an original \
@@ -151,8 +151,9 @@ _PLACEHOLDERS = {
         "video2": "[lien vidéo 2]",
         "epk": "[lien EPK]",
         "personalisation": (
-            "[À COMPLÉTER : citez un artiste réel de leur programmation "
-            "récente et ce qui vous relie à l'esprit du festival.]"
+            "[À COMPLÉTER : citez un vrai artiste de leur programmation "
+            "(relecture ou hommage hard bop / Django moderne, groupe manouche, "
+            "ou jeune formation mêlant acoustique et électrique).]"
         ),
     },
     "en": {
@@ -160,40 +161,51 @@ _PLACEHOLDERS = {
         "video2": "[video link 2]",
         "epk": "[EPK link]",
         "personalisation": (
-            "[TO COMPLETE: name a real artist from their recent line-up and "
-            "what connects you to the festival's spirit.]"
+            "[TO COMPLETE: name a real artist from their line-up (a hard bop or "
+            "modern Django tribute or reworking, a gypsy jazz act, or a young "
+            "band blending acoustic and electric).]"
         ),
     },
 }
 
 _HOOK_PROMPT = """\
-We are the gypsy jazz quartet Gipsy Tonic, writing a booking email to the \
-venue below for our 2027 season. Write ONLY the opening personalisation line \
-of that email — one or two sentences, in {language_name}.
+We are the gypsy jazz quartet Gipsy Tonic. We blend jazz manouche with \
+acoustic hard bop, reworking jazz standards (Miles Davis, John Coltrane, Lee \
+Morgan, Wayne Shorter, Joe Henderson) alongside Django's own writing, with an \
+unusual lineup: two manouche guitars, clarinet and electric bass.
 
-It must name a REAL artist this venue has actually programmed (ideally in the \
-last few seasons) and connect that to the spirit of what we do (gypsy jazz \
-meeting acoustic hard bop). Use web search to check the venue's recent \
-programme or line-up and find a concrete, verifiable name; you may also use \
-the reference artists we already know played here.
+Write ONLY the opening line of a booking email to the venue below, in \
+{language_name}: one or two sentences showing we actually know their programme \
+and that something in it connects with what we do. Do not force a comparison \
+to us and do not flatter; point to something real in their programming and let \
+it speak for itself.
+
+Use web search to look at this venue's recent line-ups, then pick your angle \
+in THIS order of preference, whichever you can actually verify:
+1. an act that reworks or pays tribute to hard bop jazzmen (Miles Davis, John \
+Coltrane, Lee Morgan, Wayne Shorter, Joe Henderson) or plays Django in a \
+modern, contemporary way;
+2. a gypsy jazz / jazz manouche act on their bill;
+3. a young band with an original instrumentation that blends acoustic and \
+electric sound.
 
 Venue: {name}{place_clause} ({venue_type})
 Reference artists we already know played here: {appearances}
 Our research notes on the venue: {notes}
 
 Rules:
-- Ground the line in a real, checkable appearance — never invent an artist or \
-an edition.
-- If, after searching, you cannot verify any artist this venue programmed, do \
-NOT guess: set "personalisation" to exactly "{placeholder}" and "source" to null.
-- Warm and specific, not flattering filler. No greeting, no sign-off — just \
-the one or two sentences.
+- Name a real, checkable act or edition. Never invent one, and skip the venue's \
+own reference artists if citing them would feel forced.
+- If, after searching, you cannot verify anything along those lines, do NOT \
+guess: set "personalisation" to exactly "{placeholder}" and "source" to null.
+- Sound like a musician writing quickly, not a press release: plain, warm and \
+specific. No em dashes or double hyphens, no buzzwords, no "we were thrilled \
+to see". One or two sentences at most. No greeting and no sign-off.
 
-End your reply with ONLY a JSON object inside a ```json code fence, with \
-exactly these keys:
+End your reply with ONLY a JSON object inside a ```json code fence, with these \
+exact keys:
 - "personalisation": the line, in {language_name} (string)
-- "source": the URL of the page documenting that artist's appearance or \
-programming at this venue, or null
+- "source": the URL of the page that documents the act or edition you cite, or null
 """
 
 
@@ -298,7 +310,7 @@ def _research_personalisation(
         place_clause=f", {place}" if place else "",
         venue_type=venue.type.value,
         appearances=_appearances_text(venue, language),
-        notes=(venue.research_notes or "—").strip(),
+        notes=(venue.research_notes or "none").strip(),
         placeholder=placeholder,
     )
     client = anthropic.Anthropic(
@@ -347,10 +359,10 @@ def build_draft(
     band_name = profile.band_name or "Gipsy Tonic"
 
     if language == "fr":
-        subject = f"{band_name} — Candidature {venue.name} {year} (sortie d'album)"
+        subject = f"{band_name} : Candidature {venue.name} {year} (sortie d'album)"
         template = _FRENCH_BODY
     else:
-        subject = f"{band_name} — Application {venue.name} {year} (album release)"
+        subject = f"{band_name}: Application {venue.name} {year} (album release)"
         template = _ENGLISH_BODY
 
     personalisation, source = _research_personalisation(venue, language, api_key)

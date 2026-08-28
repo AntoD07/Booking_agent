@@ -135,22 +135,6 @@ function VenueCard({
           })}
         </p>
       )}
-      {venue.status === "discovered" && (
-        <button
-          type="button"
-          className="venue-vet"
-          title={t("board.vetTitle")}
-          // Not a drag source: on touch, a slightly-sloppy tap inside the
-          // draggable card could start a drag and swallow the click.
-          draggable={false}
-          onClick={(event) => {
-            event.stopPropagation();
-            onStatusChange(venue, "researched");
-          }}
-        >
-          {t("board.vet")} →
-        </button>
-      )}
       <select
         className="venue-status"
         value={venue.status}

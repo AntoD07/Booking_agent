@@ -274,28 +274,8 @@
   padding-top: 0.55rem;
 }
 
-/* One-tap promotion for Discovered cards: vetted, worth pitching. */
-.venue-vet {
-  margin-top: 0.7rem;
-  width: 100%;
-  padding: 0.45rem 0.5rem;
-  font-family: var(--sans);
-  font-size: 0.8rem;
-  color: var(--accent);
-  background: transparent;
-  border: 1px solid var(--accent-soft);
-  border-radius: 4px;
-  cursor: pointer;
-  transition: border-color 120ms ease;
-  /* A tap must always be a tap, never the start of a card drag or a zoom. */
-  touch-action: manipulation;
-}
-
-.venue-vet:hover {
-  border-color: var(--accent);
-}
-
 .venue-status {
+  touch-action: manipulation;
   margin-top: 0.7rem;
   width: 100%;
   padding: 0.35rem 0.5rem;

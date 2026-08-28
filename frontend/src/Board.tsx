@@ -74,7 +74,6 @@ interface VenueCardProps {
   dragging: boolean;
   onOpen: (venue: Venue) => void;
   onStatusChange: (venue: Venue, status: VenueStatus) => void;
-  onResearch: (venue: Venue) => void;
   onDragStart: (venue: Venue) => void;
   onDragEnd: () => void;
 }
@@ -84,7 +83,6 @@ function VenueCard({
   dragging,
   onOpen,
   onStatusChange,
-  onResearch,
   onDragStart,
   onDragEnd,
 }: VenueCardProps) {
@@ -137,32 +135,22 @@ function VenueCard({
           })}
         </p>
       )}
-      <div className="venue-card-actions">
+      {venue.status === "discovered" && (
         <button
           type="button"
-          className="venue-research"
-          title={t("board.searchFillTitle")}
+          className="venue-vet"
+          title={t("board.vetTitle")}
+          // Not a drag source: on touch, a slightly-sloppy tap inside the
+          // draggable card could start a drag and swallow the click.
+          draggable={false}
           onClick={(event) => {
             event.stopPropagation();
-            onResearch(venue);
+            onStatusChange(venue, "researched");
           }}
         >
-          {t("board.searchFill")}
+          {t("board.vet")} →
         </button>
-        {venue.status === "discovered" && (
-          <button
-            type="button"
-            className="venue-vet"
-            title={t("board.vetTitle")}
-            onClick={(event) => {
-              event.stopPropagation();
-              onStatusChange(venue, "researched");
-            }}
-          >
-            {t("board.vet")} →
-          </button>
-        )}
-      </div>
+      )}
       <select
         className="venue-status"
         value={venue.status}
@@ -189,7 +177,6 @@ interface BoardProps {
   onSignOut: () => void;
   onAddVenue: () => void;
   onOpenScan: () => void;
-  onResearchVenue: (venue: Venue) => void;
   onOpenProfile: () => void;
   onOpenVenue: (venue: Venue) => void;
   onStatusChange: (venue: Venue, status: VenueStatus) => void;
@@ -202,7 +189,6 @@ export default function Board({
   onSignOut,
   onAddVenue,
   onOpenScan,
-  onResearchVenue,
   onOpenProfile,
   onOpenVenue,
   onStatusChange,
@@ -377,7 +363,6 @@ export default function Board({
                     dragging={venue.id === draggingId}
                     onOpen={onOpenVenue}
                     onStatusChange={onStatusChange}
-                    onResearch={onResearchVenue}
                     onDragStart={(v) => setDraggingId(v.id)}
                     onDragEnd={endDrag}
                   />

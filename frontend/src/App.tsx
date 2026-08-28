@@ -217,7 +217,6 @@ export default function App() {
         }}
         onAddVenue={() => setActive("new")}
         onOpenScan={() => setView("scan")}
-        onResearchVenue={(venue) => openResearch(venue.id)}
         onOpenProfile={() => setProfileOpen(true)}
         onOpenVenue={(venue) => setActive(venue)}
         onStatusChange={async (venue: Venue, status: VenueStatus) => {
@@ -261,6 +260,13 @@ export default function App() {
             loadVenues();
           }}
           onVenueChanged={loadVenues}
+          onResearch={() => {
+            const venue = active;
+            setActive(null); // the research dialog takes over from the sheet
+            if (venue && venue !== "new") {
+              openResearch(venue.id);
+            }
+          }}
           onUnauthorized={() => setSession("anonymous")}
         />
       )}

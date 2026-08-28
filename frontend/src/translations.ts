@@ -108,6 +108,7 @@ const core: Record<Lang, Record<string, string>> = {
     // Added after the generated files: sheet links + artist findings
     "venueSheet.discardConfirm":
       "Des modifications ne sont pas enregistrées. Fermer sans enregistrer ?",
+    "venueSheet.research": "Recherche & remplissage",
     "venueSheet.openLink": "ouvrir",
     "venueSheet.writeLink": "écrire",
     "researchDialog.field.artist": "A joué ici",
@@ -203,6 +204,7 @@ const core: Record<Lang, Record<string, string>> = {
     "app.somethingWrong": "Something went wrong",
 
     "venueSheet.discardConfirm": "You have unsaved changes. Close without saving?",
+    "venueSheet.research": "Search & fill",
     "venueSheet.openLink": "open",
     "venueSheet.writeLink": "write",
     "researchDialog.field.artist": "Played here",
@@ -298,6 +300,7 @@ const core: Record<Lang, Record<string, string>> = {
     "app.somethingWrong": "Algo salió mal",
 
     "venueSheet.discardConfirm": "Hay cambios sin guardar. ¿Cerrar sin guardar?",
+    "venueSheet.research": "Buscar y rellenar",
     "venueSheet.openLink": "abrir",
     "venueSheet.writeLink": "escribir",
     "researchDialog.field.artist": "Tocó aquí",

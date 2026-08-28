@@ -40,6 +40,28 @@
   line-height: 1.15;
 }
 
+/* Run Search & fill on this venue, right from its sheet. */
+.sheet-research {
+  margin-top: 0.6rem;
+  padding: 0.45rem 0.9rem;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.sheet-research:hover {
+  background: var(--accent);
+  color: var(--paper-raised);
+}
+
 .sheet-close {
   background: none;
   border: none;

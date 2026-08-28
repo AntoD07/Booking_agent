@@ -105,6 +105,8 @@ interface VenueSheetProps {
   onSaved: () => void;
   /** Refresh the board without closing the sheet (e.g. a draft moved the card). */
   onVenueChanged: () => void;
+  /** Run Search & fill on this venue (closes the sheet; the dialog takes over). */
+  onResearch: () => void;
   onUnauthorized: () => void;
 }
 
@@ -113,6 +115,7 @@ export default function VenueSheet({
   onClose,
   onSaved,
   onVenueChanged,
+  onResearch,
   onUnauthorized,
 }: VenueSheetProps) {
   const t = useT();
@@ -213,6 +216,15 @@ export default function VenueSheet({
     }
   }
 
+  function requestResearch() {
+    // The dialog replaces the sheet, so unsaved edits get the same guard as
+    // closing — otherwise stale form values could later clobber fresh research.
+    const dirty = JSON.stringify(form) !== JSON.stringify(initialForm);
+    if (!dirty || window.confirm(t("venueSheet.discardConfirm"))) {
+      onResearch();
+    }
+  }
+
   function requestClose() {
     // Field edits only persist via Save; a stray tap on the backdrop must
     // not silently discard them.
@@ -251,6 +263,16 @@ export default function VenueSheet({
             <h2 className="sheet-title">
               {venue ? venue.name : t("venueSheet.addVenueTitle")}
             </h2>
+            {venue && (
+              <button
+                type="button"
+                className="sheet-research"
+                title={t("board.searchFillTitle")}
+                onClick={requestResearch}
+              >
+                {t("venueSheet.research")}
+              </button>
+            )}
           </div>
           <button type="button" className="sheet-close" onClick={requestClose}>
             {t("common.close")}

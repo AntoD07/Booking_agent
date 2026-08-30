@@ -57,8 +57,12 @@ Return 6 to 12 suggestions. End your reply with ONLY a JSON array inside a
 - "country": country name in English, or null
 - "website": the venue's own website URL, or null
 - "artist": which of the given artist(s) played there
+- "year": the year of that appearance as a 4-digit string (e.g. "2024"); if
+  the artist played there several times, use the most recent year; null if
+  you cannot tell
 - "source_url": URL of the page documenting the appearance, or null
 
+Sort the array by "year", most recent first, with unknown years last.
 Do not invent venues; only include places you found evidence for.
 """
 
@@ -392,6 +396,7 @@ def _parse_suggestions(text: str) -> list[dict]:
                 "country": _clean(item.get("country")),
                 "website": _clean(item.get("website")),
                 "artist": _clean(item.get("artist")),
+                "year": _clean_year(item.get("year")),
                 "event_dates": _clean(item.get("event_dates")),
                 "source_url": _clean(item.get("source_url")),
             }
@@ -420,6 +425,16 @@ def _clean(value) -> str | None:
         return None
     value = value.strip()
     return value or None
+
+
+def _clean_year(value) -> str | None:
+    """Normalize a reported appearance year to a 4-digit string, else None."""
+    if isinstance(value, int):
+        value = str(value)
+    if not isinstance(value, str):
+        return None
+    match = re.search(r"(19|20)\d{2}", value)
+    return match.group(0) if match else None
 
 
 def _coerce_type(value) -> VenueType:

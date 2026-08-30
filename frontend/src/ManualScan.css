@@ -326,6 +326,25 @@
   color: var(--ink-soft);
 }
 
+.scan-year-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.scan-year-group + .scan-year-group {
+  margin-top: 1.25rem;
+}
+
+.scan-year-heading {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  color: var(--accent);
+  margin: 0;
+  padding-bottom: 0.15rem;
+  border-bottom: 1px solid var(--line);
+}
+
 .suggestion-card {
   background: var(--paper-raised);
   border: 1px solid var(--line);

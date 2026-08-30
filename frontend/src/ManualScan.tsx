@@ -271,6 +271,101 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
     .map((suggestion, index) => ({ suggestion, index, state: review[index] }))
     .filter(({ state }) => state !== "dismissed");
 
+  type VisibleItem = (typeof visible)[number];
+
+  // Group suggestions by appearance year, most recent first, unknown year
+  // last. Artist scans carry a year; the general scan doesn't, so its whole
+  // list falls into one unlabelled group and renders flat (see anyYear).
+  const anyYear = visible.some(({ suggestion }) => suggestion.year);
+  const byYear = new Map<string, VisibleItem[]>();
+  for (const item of visible) {
+    const key = item.suggestion.year ?? "";
+    (byYear.get(key) ?? byYear.set(key, []).get(key)!).push(item);
+  }
+  const yearGroups = [...byYear.entries()].sort(([a], [b]) => {
+    if (a === b) return 0;
+    if (a === "") return 1; // unknown year sinks to the bottom
+    if (b === "") return -1;
+    return b.localeCompare(a); // most recent first
+  });
+
+  const renderCard = ({ suggestion, index, state }: VisibleItem) => {
+    const place = [suggestion.city, suggestion.country]
+      .filter(Boolean)
+      .join(", ");
+    return (
+      <article className="suggestion-card" key={index}>
+        <h3 className="suggestion-name">{suggestion.name}</h3>
+        <p className="suggestion-meta">
+          {t(`type.${suggestion.type}`)}
+          {place && ` · ${place}`}
+        </p>
+        {suggestion.artist && (
+          <p className="suggestion-artist">
+            {t("manualScan.artistPlayedHere", { artist: suggestion.artist })}
+            {suggestion.year && ` (${suggestion.year})`}
+          </p>
+        )}
+        {suggestion.event_dates && (
+          <p className="suggestion-dates">{suggestion.event_dates}</p>
+        )}
+        {(suggestion.website || suggestion.source_url) && (
+          <p className="suggestion-links">
+            {suggestion.website && (
+              <a href={suggestion.website} target="_blank" rel="noreferrer">
+                {t("manualScan.website")}
+              </a>
+            )}
+            {suggestion.source_url && (
+              <a href={suggestion.source_url} target="_blank" rel="noreferrer">
+                {t("manualScan.source")}
+              </a>
+            )}
+          </p>
+        )}
+        {suggestion.already_in_pipeline ? (
+          <>
+            <p className="suggestion-known">
+              {t("manualScan.alreadyInPipeline")}
+              {suggestion.matched_venue_name &&
+                t("manualScan.alreadyInPipelineAs", {
+                  name: suggestion.matched_venue_name,
+                })}
+            </p>
+            <div className="suggestion-actions">
+              <button
+                className="suggestion-dismiss"
+                onClick={() => dismiss(index)}
+              >
+                {t("manualScan.dismiss")}
+              </button>
+            </div>
+          </>
+        ) : state === "accepted" ? (
+          <p className="suggestion-accepted">{t("manualScan.added")}</p>
+        ) : (
+          <div className="suggestion-actions">
+            <button
+              className="suggestion-accept"
+              disabled={state === "accepting"}
+              onClick={() => accept(index)}
+            >
+              {state === "accepting"
+                ? t("manualScan.adding")
+                : t("manualScan.addToPipeline")}
+            </button>
+            <button
+              className="suggestion-dismiss"
+              onClick={() => dismiss(index)}
+            >
+              {t("manualScan.dismiss")}
+            </button>
+          </div>
+        )}
+      </article>
+    );
+  };
+
   return (
     <div className="scan-page">
       <header className="scan-header">
@@ -504,89 +599,16 @@ export default function ManualScan({ onBack, onUnauthorized }: ManualScanProps) 
             <p className="scan-results-note">
               {t("manualScan.reviewNote")}
             </p>
-            {visible.map(({ suggestion, index, state }) => {
-              const place = [suggestion.city, suggestion.country]
-                .filter(Boolean)
-                .join(", ");
-              return (
-                <article className="suggestion-card" key={index}>
-                  <h3 className="suggestion-name">{suggestion.name}</h3>
-                  <p className="suggestion-meta">
-                    {t(`type.${suggestion.type}`)}
-                    {place && ` · ${place}`}
-                  </p>
-                  {suggestion.artist && (
-                    <p className="suggestion-artist">
-                      {t("manualScan.artistPlayedHere", { artist: suggestion.artist })}
-                    </p>
-                  )}
-                  {suggestion.event_dates && (
-                    <p className="suggestion-dates">{suggestion.event_dates}</p>
-                  )}
-                  {(suggestion.website || suggestion.source_url) && (
-                    <p className="suggestion-links">
-                      {suggestion.website && (
-                        <a
-                          href={suggestion.website}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {t("manualScan.website")}
-                        </a>
-                      )}
-                      {suggestion.source_url && (
-                        <a
-                          href={suggestion.source_url}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {t("manualScan.source")}
-                        </a>
-                      )}
-                    </p>
-                  )}
-                  {suggestion.already_in_pipeline ? (
-                    <>
-                      <p className="suggestion-known">
-                        {t("manualScan.alreadyInPipeline")}
-                        {suggestion.matched_venue_name &&
-                          t("manualScan.alreadyInPipelineAs", {
-                            name: suggestion.matched_venue_name,
-                          })}
-                      </p>
-                      <div className="suggestion-actions">
-                        <button
-                          className="suggestion-dismiss"
-                          onClick={() => dismiss(index)}
-                        >
-                          {t("manualScan.dismiss")}
-                        </button>
-                      </div>
-                    </>
-                  ) : state === "accepted" ? (
-                    <p className="suggestion-accepted">
-                      {t("manualScan.added")}
-                    </p>
-                  ) : (
-                    <div className="suggestion-actions">
-                      <button
-                        className="suggestion-accept"
-                        disabled={state === "accepting"}
-                        onClick={() => accept(index)}
-                      >
-                        {state === "accepting" ? t("manualScan.adding") : t("manualScan.addToPipeline")}
-                      </button>
-                      <button
-                        className="suggestion-dismiss"
-                        onClick={() => dismiss(index)}
-                      >
-                        {t("manualScan.dismiss")}
-                      </button>
-                    </div>
-                  )}
-                </article>
-              );
-            })}
+            {anyYear
+              ? yearGroups.map(([year, items]) => (
+                  <div className="scan-year-group" key={year || "unknown"}>
+                    <h3 className="scan-year-heading">
+                      {year || t("manualScan.yearUnknown")}
+                    </h3>
+                    {items.map(renderCard)}
+                  </div>
+                ))
+              : visible.map(renderCard)}
           </section>
         )}
       </main>

@@ -170,6 +170,7 @@ export function acceptSuggestion(
       country: suggestion.country,
       website: suggestion.website,
       artist: suggestion.artist,
+      year: suggestion.year,
       event_dates: suggestion.event_dates,
       source_url: suggestion.source_url,
       source,

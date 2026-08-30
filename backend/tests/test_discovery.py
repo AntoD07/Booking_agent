@@ -16,6 +16,7 @@ I searched the manouche circuit and found these venues.
     "country": "France",
     "website": "https://www.festivaldjangoreinhardt.com",
     "artist": "Rhythm Future Quartet",
+    "year": "2025",
     "source_url": "https://example.com/lineup-2025"
   },
   {
@@ -25,6 +26,7 @@ I searched the manouche circuit and found these venues.
     "country": "France",
     "website": "https://www.sunset-sunside.com",
     "artist": "Rhythm Future Quartet",
+    "year": "summer 2023",
     "source_url": null
   },
   {
@@ -86,9 +88,20 @@ def test_discover_returns_parsed_suggestions(auth_client, api_key, monkeypatch):
     assert festival["artist"] == "Rhythm Future Quartet"
     assert festival["source_url"] == "https://example.com/lineup-2025"
     assert festival["already_in_pipeline"] is False
+    assert festival["year"] == "2025"
     # "jazz club" is coerced to the enum value
     assert club["type"] == "jazz_club"
     assert club["source_url"] is None
+    # A year embedded in free text is normalized to the 4-digit string
+    assert club["year"] == "2023"
+
+
+def test_clean_year_normalizes():
+    assert discovery._clean_year("2024") == "2024"
+    assert discovery._clean_year("summer 2023") == "2023"
+    assert discovery._clean_year(2022) == "2022"
+    assert discovery._clean_year("recently") is None
+    assert discovery._clean_year(None) is None
 
 
 def test_discover_marks_venues_already_in_pipeline(auth_client, api_key, monkeypatch):
@@ -210,6 +223,7 @@ def test_accept_creates_discovered_venue_with_artist_link(auth_client):
             "country": "France",
             "website": "https://www.sunset-sunside.com",
             "artist": "Rhythm Future Quartet",
+            "year": "2025",
             "source_url": "https://example.com/lineup-2025",
         },
     )
@@ -220,6 +234,8 @@ def test_accept_creates_discovered_venue_with_artist_link(auth_client):
     assert "https://example.com/lineup-2025" in venue["research_notes"]
     assert venue["added_by"] == "Claude"
     assert [a["name"] for a in venue["artists"]] == ["Rhythm Future Quartet"]
+    # The appearance year is recorded on the artist link
+    assert venue["artists"][0]["year"] == "2025"
 
     artists = auth_client.get("/api/artists").json()
     assert [a["name"] for a in artists] == ["Rhythm Future Quartet"]

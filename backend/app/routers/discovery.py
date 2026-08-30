@@ -339,7 +339,11 @@ def accept_suggestion(
             artist = Artist(name=payload.artist, band_id=band.id)
             db.add(artist)
             db.flush()
-        db.add(VenueArtist(venue_id=venue.id, artist_id=artist.id))
+        db.add(
+            VenueArtist(
+                venue_id=venue.id, artist_id=artist.id, year=payload.year
+            )
+        )
     db.commit()
     db.refresh(venue)
     api_key = _api_key_for(band)

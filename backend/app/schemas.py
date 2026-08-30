@@ -216,6 +216,8 @@ class SuggestionOut(BaseModel):
     country: str | None = None
     website: str | None = None
     artist: str | None = None
+    # Year of the reference-artist appearance (artist scans), for grouping.
+    year: str | None = None
     event_dates: str | None = None
     source_url: str | None = None
     already_in_pipeline: bool = False
@@ -251,6 +253,7 @@ class SuggestionAccept(BaseModel):
     country: str | None = None
     website: str | None = None
     artist: str | None = None
+    year: str | None = None
     event_dates: str | None = None
     source_url: str | None = None
     # Where the lead came from; defaults to the artist hook when absent.

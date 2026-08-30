@@ -90,6 +90,8 @@ export interface Suggestion {
   country: string | null;
   website: string | null;
   artist: string | null;
+  /** Year of the reference-artist appearance, for grouping (artist scans). */
+  year: string | null;
   event_dates: string | null;
   source_url: string | null;
   already_in_pipeline: boolean;

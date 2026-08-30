@@ -26,6 +26,31 @@ function fieldLabel(field: string, t: (key: string) => string): string {
   return key ? t(key) : field;
 }
 
+/** Render any URL inside a value as a real link — programme pages, websites,
+ * application forms — so nothing has to be copied by hand to be checked. */
+function Linkified({ text }: { text: string }) {
+  const parts = text.split(/(https?:\/\/[^\s)]+)/g);
+  return (
+    <>
+      {parts.map((part, index) =>
+        /^https?:\/\//.test(part) ? (
+          <a
+            key={index}
+            className="research-url"
+            href={part.replace(/[.,;]+$/, "")}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {part}
+          </a>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
+}
+
 /** Deadlines travel as "YYYY-MM"; show just the month — the season is 2027. */
 function formatValue(finding: ResearchFinding, lang: Lang): string {
   if (
@@ -111,7 +136,7 @@ function FindingsList({ findings }: { findings: ResearchFinding[] }) {
                     {fieldLabel(finding.field, t)}
                   </span>
                   <span className="research-value">
-                    {formatValue(finding, lang)}
+                    <Linkified text={formatValue(finding, lang)} />
                     {finding.old_value &&
                       finding.applied &&
                       finding.field !== "note" && (
@@ -124,9 +149,11 @@ function FindingsList({ findings }: { findings: ResearchFinding[] }) {
                       )}
                     {conflict && (
                       <span className="research-oncard">
-                        {t("researchDialog.onCard", {
-                          value: finding.old_value ?? "",
-                        })}
+                        <Linkified
+                          text={t("researchDialog.onCard", {
+                            value: finding.old_value ?? "",
+                          })}
+                        />
                       </span>
                     )}
                   </span>

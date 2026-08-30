@@ -180,6 +180,11 @@
   white-space: nowrap;
 }
 
+.research-url {
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+
 .research-source {
   font-size: 0.8rem;
   color: var(--accent);

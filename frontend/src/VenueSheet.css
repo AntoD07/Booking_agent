@@ -152,6 +152,31 @@
   text-decoration: underline;
 }
 
+/* URLs found in the notes, as chips — the textarea itself stays plain text. */
+.notes-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.4rem 0 0;
+}
+
+.notes-link {
+  font-size: 0.8rem;
+  color: var(--accent);
+  text-decoration: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notes-link:hover {
+  border-color: var(--accent);
+}
+
 .field input,
 .field select,
 .field textarea {

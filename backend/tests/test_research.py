@@ -502,3 +502,63 @@ def test_run_rejects_another_bands_venue(auth_client, band, monkeypatch):
         "/api/research/runs", json={"venue_id": foreign_id}
     )
     assert response.status_code == 404
+
+
+def test_program_link_findings_land_in_notes(band):
+    with SessionLocal() as db:
+        venue = _make_venue(db, band.id, name="Lac Léman Jazz")
+        _apply(
+            db,
+            band.id,
+            venue,
+            [
+                {
+                    "venue_id": venue.id,
+                    "field": "program_link",
+                    "value": "2026: https://llj.example/programme-2026",
+                    "confidence": "high",
+                    "source": "https://llj.example/programme-2026",
+                },
+                {
+                    "venue_id": venue.id,
+                    "field": "program_link",
+                    "value": "2025 - https://llj.example/edition/2025",
+                    "confidence": "high",
+                    "source": None,
+                },
+                {
+                    "venue_id": venue.id,
+                    "field": "program_link",
+                    "value": "no url here",  # unusable: dropped
+                    "confidence": "medium",
+                    "source": None,
+                },
+            ],
+        )
+        refreshed = db.get(Venue, venue.id)
+        notes = refreshed.research_notes or ""
+        assert "— Programmation 2026 : https://llj.example/programme-2026" in notes
+        assert "— Programmation 2025 : https://llj.example/edition/2025" in notes
+        stored = [
+            f for f in db.scalars(select(ResearchFinding)) if f.field == "program_link"
+        ]
+        assert len(stored) == 2  # the unusable one was not stored
+        assert all(f.applied for f in stored)
+
+        # A re-run finding the same page again is recorded but not re-applied.
+        _apply(
+            db,
+            band.id,
+            db.get(Venue, venue.id),
+            [
+                {
+                    "venue_id": venue.id,
+                    "field": "program_link",
+                    "value": "2026: https://llj.example/programme-2026",
+                    "confidence": "high",
+                    "source": None,
+                }
+            ],
+        )
+        notes = db.get(Venue, venue.id).research_notes or ""
+        assert notes.count("Programmation 2026") == 1

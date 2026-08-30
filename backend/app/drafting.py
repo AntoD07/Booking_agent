@@ -193,6 +193,10 @@ Venue: {name}{place_clause} ({venue_type})
 Reference artists we already know played here: {appearances}
 Our research notes on the venue: {notes}
 
+While you search, also collect the URLs of the venue's official programme / \
+line-up pages for the two most recent past editions ({prev2} and {prev1}), \
+when you actually come across them. Never construct a URL.
+
 Rules:
 - Name a real, checkable act or edition. Never invent one, and skip the venue's \
 own reference artists if citing them would feel forced.
@@ -206,6 +210,8 @@ End your reply with ONLY a JSON object inside a ```json code fence, with these \
 exact keys:
 - "personalisation": the line, in {language_name} (string)
 - "source": the URL of the page that documents the act or edition you cite, or null
+- "program_links": an array of {{"year": YYYY, "url": "..."}} for the programme \
+pages you found (empty array if none)
 """
 
 
@@ -291,20 +297,23 @@ def _appearances_text(venue: Venue, language: str) -> str:
 
 def _research_personalisation(
     venue: Venue, language: str, api_key: str | None = None
-) -> tuple[str, str | None]:
+) -> tuple[str, str | None, list[dict]]:
     """Web-search the venue's programme for the hook and its source.
 
-    Returns (personalisation, source_url). Falls back to the bracketed
-    placeholder (and no source) without a key, or if the search turns up
-    nothing verifiable or errors — a hook problem must never sink the draft,
-    since the rest of the email is fixed.
+    Returns (personalisation, source_url, program_links) — the links are the
+    past editions' programme pages spotted along the way, for the venue's
+    notes. Falls back to the bracketed placeholder (no source, no links)
+    without a key, or if the search turns up nothing verifiable or errors —
+    a hook problem must never sink the draft, since the rest is fixed.
     """
     placeholder = _PLACEHOLDERS[language]["personalisation"]
     key = api_key or anthropic_api_key()
     if not key:
-        return placeholder, None
+        return placeholder, None, []
     place = ", ".join(part for part in (venue.city, venue.country) if part)
     prompt = _HOOK_PROMPT.format(
+        prev1=TARGET_SEASON_YEAR - 1,
+        prev2=TARGET_SEASON_YEAR - 2,
         language_name="French" if language == "fr" else "English",
         name=venue.name,
         place_clause=f", {place}" if place else "",
@@ -329,29 +338,32 @@ def _research_personalisation(
             response = _create_message(client, messages, None, deadline)
     except (DiscoveryError, anthropic.APIError) as exc:
         logger.warning("drafting: hook search failed (%s) — using placeholder", exc)
-        return placeholder, None
+        return placeholder, None, []
 
     text = "".join(block.text for block in response.content if block.type == "text")
     data = _extract_json_object(text)
+    raw_links = data.get("program_links") if isinstance(data, dict) else None
+    links = [item for item in raw_links if isinstance(item, dict)][:4] if isinstance(raw_links, list) else []
     value = data.get("personalisation") if isinstance(data, dict) else None
     if not isinstance(value, str) or not value.strip():
         # A malformed reply must not sink the whole draft — the rest is fixed.
         logger.warning("drafting: no usable personalisation in reply %r", text[:200])
-        return placeholder, None
+        return placeholder, None, links
     source = data.get("source") if isinstance(data, dict) else None
     if not (isinstance(source, str) and source.strip() and source.strip().lower() != "null"):
         source = None
     else:
         source = source.strip()[:500]
-    return value.strip(), source
+    return value.strip(), source, links
 
 
 def build_draft(
     venue: Venue, profile: BandProfile, api_key: str | None = None
-) -> tuple[str, str, str | None]:
-    """Return (subject, body, source) for this venue's application email.
+) -> tuple[str, str, str | None, list[dict]]:
+    """Return (subject, body, source, program_links) for this venue's email.
 
-    `source` is the page Claude used to ground the opening line, or None.
+    `source` is the page Claude used to ground the opening line, or None;
+    `program_links` are past-edition programme pages for the venue's notes.
     """
     language = draft_language(venue.country)
     year = _edition_year(venue)
@@ -365,7 +377,9 @@ def build_draft(
         subject = f"{band_name}: Application {venue.name} {year} (album release)"
         template = _ENGLISH_BODY
 
-    personalisation, source = _research_personalisation(venue, language, api_key)
+    personalisation, source, program_links = _research_personalisation(
+        venue, language, api_key
+    )
     body = template.format(
         greeting=_greeting(venue, language),
         personalisation=personalisation,
@@ -377,4 +391,4 @@ def build_draft(
         video2=(profile.video2_url or fill["video2"]),
         epk=(profile.epk_url or fill["epk"]),
     )
-    return subject[:300], body, source
+    return subject[:300], body, source, program_links

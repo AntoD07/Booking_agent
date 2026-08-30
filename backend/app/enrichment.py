@@ -61,6 +61,7 @@ RESEARCHABLE_FIELDS = [
     "application_deadline",
     "event_dates",
     "artist",
+    "program_link",
     "note",
 ]
 
@@ -104,6 +105,11 @@ For each venue, use web search to:
    "artist" and value the band's name, adding the year in parentheses if you
    know it (e.g. "Mustaka (2023)"). Only report a real, sourced appearance;
    never guess.
+5. Collect the URLs of the venue's official programme / line-up pages for
+   the two most recent past editions ({prev2} and {prev1}). Report each as
+   its own finding with field "program_link" and value "YYYY: URL" — the
+   year that programme is for, then the page's full URL. Only report pages
+   you actually found; never construct a URL.
 
 Rules:
 - Only report emails you actually found published — never construct one.
@@ -121,7 +127,7 @@ object per finding, with exactly these keys:
 - "venue_id": the venue's id from the list above (integer)
 - "field": one of "website", "contact_email", "booking_contact",
   "application_method", "application_url", "application_deadline",
-  "event_dates", "artist", "note"
+  "event_dates", "artist", "program_link", "note"
 - "value": the found value (string)
 - "confidence": "high" (published/official) or "medium" (derived/secondary)
 - "source": URL of the page documenting it, or null
@@ -242,6 +248,8 @@ def research_batch(
     prompt = _PROMPT.format(
         today=date.today().isoformat(),
         venues_json=json.dumps(venues_payload, ensure_ascii=False, indent=1),
+        prev1=TARGET_SEASON_YEAR - 1,
+        prev2=TARGET_SEASON_YEAR - 2,
         artists_line=(
             ", ".join(reference_artists)
             if reference_artists
@@ -307,6 +315,38 @@ def _parse_month(value: str) -> date | None:
     if not 1 <= month <= 12:
         return None
     return date(year, month, 1)
+
+
+def add_program_links_to_notes(venue: Venue, links: list[dict]) -> int:
+    """Append "— Programmation YYYY : URL" lines to the venue's notes.
+
+    Both research and email drafting record the past editions' programme
+    pages here. Deduped: a URL already noted, or a year already covered,
+    is skipped. Returns how many lines were added.
+    """
+    base = venue.research_notes or ""
+    added = 0
+    for link in links:
+        if not isinstance(link, dict):
+            continue
+        url = link.get("url")
+        year = link.get("year")
+        try:
+            year = int(year)
+        except (TypeError, ValueError):
+            continue
+        if not (isinstance(url, str) and url.strip().startswith("http")):
+            continue
+        if not 2000 <= year <= 2100:
+            continue
+        url = url.strip()[:500]
+        if url in base or f"Programmation {year}" in base:
+            continue
+        base = (base + "\n\n" + f"— Programmation {year} : {url}").strip()
+        added += 1
+    if added:
+        venue.research_notes = base
+    return added
 
 
 def apply_findings(
@@ -381,6 +421,17 @@ def apply_findings(
                 venue.research_notes = (base + "\n\n" + addition).strip()
                 run.fields_filled += 1
             finding.old_value = None
+        elif field == "program_link":
+            match = re.search(r"(20\d{2})\D*?(https?://\S+)", value)
+            if match is None:
+                continue  # unusable format; don't store noise
+            year, url = int(match.group(1)), match.group(2).rstrip(").,")
+            finding.new_value = f"{year}: {url}"
+            finding.old_value = None
+            if add_program_links_to_notes(venue, [{"year": year, "url": url}]):
+                run.fields_filled += 1
+            else:
+                finding.applied = False  # already noted on this card
         elif field == "note":
             stamp = now.strftime("%b %Y")
             suffix = f" (source : {source})" if source else ""

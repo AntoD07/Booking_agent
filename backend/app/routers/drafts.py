@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app import drafting
+from app import drafting, enrichment
 from app.config import anthropic_api_key
 from app.db import get_db
 from app.models import (
@@ -132,7 +132,7 @@ def generate_draft(
     venue = _get_venue(db, band, venue_id)
     profile = _get_profile(db, band)
     try:
-        subject, body, source = drafting.build_draft(
+        subject, body, source, program_links = drafting.build_draft(
             venue, profile, api_key=_api_key_for(band)
         )
     except anthropic.APITimeoutError:
@@ -149,6 +149,9 @@ def generate_draft(
         source=source,
     )
     db.add(draft)
+    # Programme pages spotted while researching the hook land in the venue's
+    # notes, so both flows leave the same paper trail on the card.
+    enrichment.add_program_links_to_notes(venue, program_links)
     if venue.status in _PRE_DRAFT:
         venue.status = VenueStatus.draft_ready
     db.commit()

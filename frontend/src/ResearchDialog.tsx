@@ -17,6 +17,7 @@ const FIELD_KEYS: Record<string, string> = {
   application_deadline: "researchDialog.field.applicationDeadline",
   event_dates: "researchDialog.field.eventDates",
   artist: "researchDialog.field.artist",
+  program_link: "researchDialog.field.programLink",
   note: "researchDialog.field.note",
 };
 

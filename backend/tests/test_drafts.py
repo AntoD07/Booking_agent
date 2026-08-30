@@ -119,6 +119,10 @@ def test_generate_personalisation_and_source_from_claude(
         lambda venue, language, api_key=None: (
             "J'ai vu que vous aviez programmé le Rosenberg Trio.",
             "https://django-fest.example/2026-lineup",
+            [
+                {"year": 2026, "url": "https://django-fest.example/2026-lineup"},
+                {"year": 2025, "url": "https://django-fest.example/2025-lineup"},
+            ],
         ),
     )
     with SessionLocal() as db:
@@ -129,6 +133,16 @@ def test_generate_personalisation_and_source_from_claude(
     assert "À COMPLÉTER" not in draft["body"]
     # The page Claude grounded the opening line in is stored on the draft.
     assert draft["source"] == "https://django-fest.example/2026-lineup"
+    # Programme pages spotted during the hook search land in the venue notes.
+    with SessionLocal() as db:
+        notes = db.get(Venue, vid).research_notes or ""
+        assert "— Programmation 2026 : https://django-fest.example/2026-lineup" in notes
+        assert "— Programmation 2025 : https://django-fest.example/2025-lineup" in notes
+    # Drafting again must not duplicate the lines.
+    auth_client.post(f"/api/venues/{vid}/drafts")
+    with SessionLocal() as db:
+        notes = db.get(Venue, vid).research_notes or ""
+        assert notes.count("Programmation 2026") == 1
 
 
 def test_generate_unknown_venue_404(auth_client, monkeypatch):

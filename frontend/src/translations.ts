@@ -110,6 +110,7 @@ const core: Record<Lang, Record<string, string>> = {
     "venueSheet.openLink": "ouvrir",
     "venueSheet.writeLink": "écrire",
     "researchDialog.field.artist": "A joué ici",
+    "researchDialog.field.programLink": "Programmation",
   },
   en: {
     "common.close": "Close",
@@ -204,6 +205,7 @@ const core: Record<Lang, Record<string, string>> = {
     "venueSheet.openLink": "open",
     "venueSheet.writeLink": "write",
     "researchDialog.field.artist": "Played here",
+    "researchDialog.field.programLink": "Programme",
   },
   es: {
     "common.close": "Cerrar",
@@ -298,6 +300,7 @@ const core: Record<Lang, Record<string, string>> = {
     "venueSheet.openLink": "abrir",
     "venueSheet.writeLink": "escribir",
     "researchDialog.field.artist": "Tocó aquí",
+    "researchDialog.field.programLink": "Programación",
   },
 };
 

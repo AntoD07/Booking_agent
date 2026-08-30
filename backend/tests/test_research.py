@@ -93,9 +93,9 @@ def test_run_applies_findings_under_confidence_rules(auth_client, band, monkeypa
     assert run["status"] == "completed"
     assert run["venues_checked"] >= 3
     assert run["fields_filled"] == 2  # email + refreshed deadline
-    # Only the protected email counts as kept — not-yet-flushed findings
-    # must not be miscounted as unapplied.
-    assert "1 finding kept for review" in run["summary"]
+    # The protected email differs from the find: it surfaces as a conflict
+    # to verify (and not-yet-flushed findings must not be miscounted).
+    assert "1 conflict with the card to verify" in run["summary"]
 
     with SessionLocal() as db:
         filled = db.get(Venue, ids["empty"])

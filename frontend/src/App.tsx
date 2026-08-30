@@ -31,12 +31,24 @@ function researchDoneText(run: ResearchRun, t: T): string {
   if (run.status === "failed") {
     return t("app.researchFailed");
   }
+  let text;
   if (run.fields_filled > 0) {
-    return run.fields_filled === 1
-      ? t("app.researchDoneOne")
-      : t("app.researchDoneMany", { n: run.fields_filled });
+    text =
+      run.fields_filled === 1
+        ? t("app.researchDoneOne")
+        : t("app.researchDoneMany", { n: run.fields_filled });
+  } else {
+    text = t("app.researchDoneNothing");
   }
-  return t("app.researchDoneNothing");
+  // Finds that differ from what the card already says are kept aside for
+  // manual checking — worth flagging right in the toast.
+  const conflicts = run.findings.filter(
+    (f) => !f.applied && f.old_value && f.old_value !== f.new_value,
+  ).length;
+  if (conflicts > 0) {
+    text += t("app.researchConflicts", { n: conflicts });
+  }
+  return text;
 }
 
 export default function App() {
@@ -219,19 +231,28 @@ export default function App() {
         onOpenScan={() => setView("scan")}
         onOpenProfile={() => setProfileOpen(true)}
         onOpenVenue={(venue) => setActive(venue)}
-        onStatusChange={async (venue: Venue, status: VenueStatus) => {
-          try {
-            await updateVenue(venue.id, { status });
-            await loadVenues();
-            showToast(
-              t("app.movedTo", {
-                name: venue.name,
-                status: t(`status.${status}`),
-              }),
+        onStatusChange={(venue: Venue, status: VenueStatus) => {
+          // Optimistic: move the card immediately — a status change is tiny
+          // and the free-tier backend can take seconds to answer. Roll back
+          // (and say so) only if the save actually fails.
+          const previousStatus = venue.status;
+          setVenues((current) =>
+            current.map((v) => (v.id === venue.id ? { ...v, status } : v)),
+          );
+          showToast(
+            t("app.movedTo", {
+              name: venue.name,
+              status: t(`status.${status}`),
+            }),
+          );
+          updateVenue(venue.id, { status }).catch((err) => {
+            setVenues((current) =>
+              current.map((v) =>
+                v.id === venue.id ? { ...v, status: previousStatus } : v,
+              ),
             );
-          } catch (err) {
             handleError(err);
-          }
+          });
         }}
       />
       {researchOpen && (

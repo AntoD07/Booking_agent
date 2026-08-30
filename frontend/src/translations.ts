@@ -100,6 +100,7 @@ const core: Record<Lang, Record<string, string>> = {
     "app.researchDoneOne": "Recherche & remplissage terminée — 1 champ rempli",
     "app.researchDoneMany": "Recherche & remplissage terminée — {n} champs remplis",
     "app.researchDoneNothing": "Recherche & remplissage terminée — rien de nouveau",
+    "app.researchConflicts": " · {n} conflit(s) à vérifier",
     "app.movedTo": "« {name} » déplacé vers {status}",
     "app.somethingWrong": "Une erreur est survenue",
 
@@ -111,6 +112,11 @@ const core: Record<Lang, Record<string, string>> = {
     "venueSheet.writeLink": "écrire",
     "researchDialog.field.artist": "A joué ici",
     "researchDialog.field.programLink": "Programmation",
+    "researchDialog.conflict": "Conflit — à vérifier",
+    "researchDialog.conflictTitle":
+      "La recherche a trouvé une valeur différente de celle de la fiche. Rien n'a été modifié : vérifiez avec la source et corrigez à la main.",
+    "researchDialog.matchesCard": "confirme la fiche",
+    "researchDialog.onCard": "Sur la fiche : {value}",
     "manualScan.yearUnknown": "Année inconnue",
   },
   en: {
@@ -198,6 +204,7 @@ const core: Record<Lang, Record<string, string>> = {
     "app.researchDoneOne": "Search & fill done — 1 field filled",
     "app.researchDoneMany": "Search & fill done — {n} fields filled",
     "app.researchDoneNothing": "Search & fill done — nothing new to add",
+    "app.researchConflicts": " · {n} conflict(s) to verify",
     "app.movedTo": "“{name}” moved to {status}",
     "app.somethingWrong": "Something went wrong",
 
@@ -207,6 +214,11 @@ const core: Record<Lang, Record<string, string>> = {
     "venueSheet.writeLink": "write",
     "researchDialog.field.artist": "Played here",
     "researchDialog.field.programLink": "Programme",
+    "researchDialog.conflict": "Conflict — verify",
+    "researchDialog.conflictTitle":
+      "The search found a value different from the card's. Nothing was changed: check the source and correct by hand.",
+    "researchDialog.matchesCard": "matches the card",
+    "researchDialog.onCard": "On the card: {value}",
     "manualScan.yearUnknown": "Year unknown",
   },
   es: {
@@ -294,6 +306,7 @@ const core: Record<Lang, Record<string, string>> = {
     "app.researchDoneOne": "Buscar y rellenar completado — 1 campo rellenado",
     "app.researchDoneMany": "Buscar y rellenar completado — {n} campos rellenados",
     "app.researchDoneNothing": "Buscar y rellenar completado — nada nuevo que añadir",
+    "app.researchConflicts": " · {n} conflicto(s) por verificar",
     "app.movedTo": "«{name}» movido a {status}",
     "app.somethingWrong": "Algo salió mal",
 
@@ -303,6 +316,11 @@ const core: Record<Lang, Record<string, string>> = {
     "venueSheet.writeLink": "escribir",
     "researchDialog.field.artist": "Tocó aquí",
     "researchDialog.field.programLink": "Programación",
+    "researchDialog.conflict": "Conflicto — verificar",
+    "researchDialog.conflictTitle":
+      "La búsqueda encontró un valor distinto al de la ficha. No se cambió nada: comprueba la fuente y corrige a mano.",
+    "researchDialog.matchesCard": "coincide con la ficha",
+    "researchDialog.onCard": "En la ficha: {value}",
     "manualScan.yearUnknown": "Año desconocido",
   },
 };

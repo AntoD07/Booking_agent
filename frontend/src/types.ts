@@ -155,9 +155,16 @@ export interface BandProfile {
   phone: string | null;
   email: string | null;
   website: string | null;
+  instagram: string | null;
   video1_url: string | null;
   video2_url: string | null;
   epk_url: string | null;
+  /** The band's own pitch body per language, or null when tracking the default. */
+  template_fr: string | null;
+  template_en: string | null;
+  /** Current defaults (read-only), for pre-filling the editor and resetting. */
+  default_template_fr: string;
+  default_template_en: string;
 }
 
 export interface Venue {

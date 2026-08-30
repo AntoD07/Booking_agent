@@ -182,10 +182,16 @@ class BandProfile(Base):
     phone: Mapped[str | None] = mapped_column(String(60))
     email: Mapped[str | None] = mapped_column(String(200))
     website: Mapped[str | None] = mapped_column(String(200))
+    instagram: Mapped[str | None] = mapped_column(String(120))
     # Two live-excerpt links and the EPK link; empty until filled in.
     video1_url: Mapped[str | None] = mapped_column(String(500))
     video2_url: Mapped[str | None] = mapped_column(String(500))
     epk_url: Mapped[str | None] = mapped_column(String(500))
+    # Editable pitch body per language, with {tokens}. NULL means "use the
+    # default template from app.drafting", so a band that never touches it
+    # still tracks changes to the default.
+    template_fr: Mapped[str | None] = mapped_column(Text)
+    template_en: Mapped[str | None] = mapped_column(Text)
 
 
 class ResearchRun(Base):

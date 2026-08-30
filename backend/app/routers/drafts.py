@@ -60,6 +60,26 @@ def _get_profile(db: Session, band: Band) -> BandProfile:
     return profile
 
 
+def _profile_out(profile: BandProfile) -> BandProfileOut:
+    """Serialise a profile, adding the current default templates so the panel
+    can pre-fill its editors and offer a reset."""
+    return BandProfileOut(
+        band_name=profile.band_name,
+        signature_name=profile.signature_name,
+        phone=profile.phone,
+        email=profile.email,
+        website=profile.website,
+        instagram=profile.instagram,
+        video1_url=profile.video1_url,
+        video2_url=profile.video2_url,
+        epk_url=profile.epk_url,
+        template_fr=profile.template_fr,
+        template_en=profile.template_en,
+        default_template_fr=drafting.DEFAULT_TEMPLATE_FR,
+        default_template_en=drafting.DEFAULT_TEMPLATE_EN,
+    )
+
+
 def _get_venue(db: Session, band: Band, venue_id: int) -> Venue:
     venue = db.get(
         Venue,
@@ -81,8 +101,8 @@ def _get_draft(db: Session, band: Band, draft_id: int) -> EmailDraft:
 @router.get("/band-profile", response_model=BandProfileOut)
 def get_band_profile(
     db: Session = Depends(get_db), band: Band = Depends(current_band)
-) -> BandProfile:
-    return _get_profile(db, band)
+) -> BandProfileOut:
+    return _profile_out(_get_profile(db, band))
 
 
 @router.put("/band-profile", response_model=BandProfileOut)
@@ -90,13 +110,13 @@ def update_band_profile(
     payload: BandProfileUpdate,
     db: Session = Depends(get_db),
     band: Band = Depends(current_band),
-) -> BandProfile:
+) -> BandProfileOut:
     profile = _get_profile(db, band)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(profile, field, value)
     db.commit()
     db.refresh(profile)
-    return profile
+    return _profile_out(profile)
 
 
 @router.get("/venues/{venue_id}/drafts", response_model=list[EmailDraftOut])

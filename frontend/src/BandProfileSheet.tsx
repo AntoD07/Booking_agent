@@ -1,7 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { UnauthorizedError, fetchBandProfile, updateBandProfile } from "./api";
 import { useT } from "./i18n";
-import type { BandProfile } from "./types";
 import "./VenueSheet.css";
 import "./DraftPanel.css";
 
@@ -10,12 +9,25 @@ interface BandProfileSheetProps {
   onUnauthorized: () => void;
 }
 
-const EMPTY: BandProfile = {
+interface FormState {
+  band_name: string;
+  signature_name: string;
+  phone: string;
+  email: string;
+  website: string;
+  instagram: string;
+  video1_url: string;
+  video2_url: string;
+  epk_url: string;
+}
+
+const EMPTY_FORM: FormState = {
   band_name: "",
   signature_name: "",
   phone: "",
   email: "",
   website: "",
+  instagram: "",
   video1_url: "",
   video2_url: "",
   epk_url: "",
@@ -26,7 +38,12 @@ export default function BandProfileSheet({
   onUnauthorized,
 }: BandProfileSheetProps) {
   const t = useT();
-  const [form, setForm] = useState<BandProfile>(EMPTY);
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  // The two editable bodies, and the current defaults for "reset".
+  const [templateFr, setTemplateFr] = useState("");
+  const [templateEn, setTemplateEn] = useState("");
+  const [defaultFr, setDefaultFr] = useState("");
+  const [defaultEn, setDefaultEn] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,17 +60,22 @@ export default function BandProfileSheet({
     fetchBandProfile()
       .then((profile) => {
         if (cancelled) return;
-        // null → "" so inputs stay controlled.
         setForm({
           band_name: profile.band_name ?? "",
           signature_name: profile.signature_name ?? "",
           phone: profile.phone ?? "",
           email: profile.email ?? "",
           website: profile.website ?? "",
+          instagram: profile.instagram ?? "",
           video1_url: profile.video1_url ?? "",
           video2_url: profile.video2_url ?? "",
           epk_url: profile.epk_url ?? "",
         });
+        setDefaultFr(profile.default_template_fr);
+        setDefaultEn(profile.default_template_en);
+        // Show the band's own body, or the default when it still tracks it.
+        setTemplateFr(profile.template_fr ?? profile.default_template_fr);
+        setTemplateEn(profile.template_en ?? profile.default_template_en);
         setLoading(false);
       })
       .catch((err) => {
@@ -68,7 +90,7 @@ export default function BandProfileSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function set<K extends keyof BandProfile>(field: K, value: string) {
+  function set<K extends keyof FormState>(field: K, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
     setSaved(false);
   }
@@ -77,7 +99,10 @@ export default function BandProfileSheet({
     event.preventDefault();
     setBusy(true);
     setError(null);
-    const text = (value: string | null) => (value && value.trim()) || null;
+    const text = (value: string) => value.trim() || null;
+    // Store null (track the default) when the body is unchanged from it.
+    const templatePatch = (value: string, base: string) =>
+      value.trim() === base.trim() ? null : value;
     try {
       await updateBandProfile({
         band_name: form.band_name.trim(),
@@ -85,9 +110,12 @@ export default function BandProfileSheet({
         phone: text(form.phone),
         email: text(form.email),
         website: text(form.website),
+        instagram: text(form.instagram),
         video1_url: text(form.video1_url),
         video2_url: text(form.video2_url),
         epk_url: text(form.epk_url),
+        template_fr: templatePatch(templateFr, defaultFr),
+        template_en: templatePatch(templateEn, defaultEn),
       });
       setBusy(false);
       setSaved(true);
@@ -121,14 +149,13 @@ export default function BandProfileSheet({
           </p>
         ) : (
           <form className="sheet-form" onSubmit={submit}>
-            <p
-              className="draft-verify"
-              style={{ margin: "0 0 0.5rem" }}
-            >
+            <p className="draft-verify" style={{ margin: "0 0 0.5rem" }}>
               {t("bandProfile.intro")}
             </p>
             <fieldset className="sheet-section">
-              <legend className="sheet-legend">{t("bandProfile.signatureLegend")}</legend>
+              <legend className="sheet-legend">
+                {t("bandProfile.signatureLegend")}
+              </legend>
               <div className="sheet-grid">
                 <label className="field">
                   <span>{t("bandProfile.bandName")}</span>
@@ -149,22 +176,30 @@ export default function BandProfileSheet({
                 <label className="field">
                   <span>{t("bandProfile.phone")}</span>
                   <input
-                    value={form.phone ?? ""}
+                    value={form.phone}
                     onChange={(e) => set("phone", e.target.value)}
                   />
                 </label>
                 <label className="field">
                   <span>{t("bandProfile.email")}</span>
                   <input
-                    value={form.email ?? ""}
+                    value={form.email}
                     onChange={(e) => set("email", e.target.value)}
                     inputMode="email"
                   />
                 </label>
-                <label className="field field-wide">
+                <label className="field">
+                  <span>{t("bandProfile.instagram")}</span>
+                  <input
+                    value={form.instagram}
+                    onChange={(e) => set("instagram", e.target.value)}
+                    placeholder="@…"
+                  />
+                </label>
+                <label className="field">
                   <span>{t("bandProfile.website")}</span>
                   <input
-                    value={form.website ?? ""}
+                    value={form.website}
                     onChange={(e) => set("website", e.target.value)}
                     inputMode="url"
                   />
@@ -173,12 +208,14 @@ export default function BandProfileSheet({
             </fieldset>
 
             <fieldset className="sheet-section">
-              <legend className="sheet-legend">{t("bandProfile.linksLegend")}</legend>
+              <legend className="sheet-legend">
+                {t("bandProfile.linksLegend")}
+              </legend>
               <div className="sheet-grid">
                 <label className="field field-wide">
                   <span>{t("bandProfile.video1")}</span>
                   <input
-                    value={form.video1_url ?? ""}
+                    value={form.video1_url}
                     onChange={(e) => set("video1_url", e.target.value)}
                     inputMode="url"
                     placeholder="https://…"
@@ -187,7 +224,7 @@ export default function BandProfileSheet({
                 <label className="field field-wide">
                   <span>{t("bandProfile.video2")}</span>
                   <input
-                    value={form.video2_url ?? ""}
+                    value={form.video2_url}
                     onChange={(e) => set("video2_url", e.target.value)}
                     inputMode="url"
                     placeholder="https://…"
@@ -196,13 +233,72 @@ export default function BandProfileSheet({
                 <label className="field field-wide">
                   <span>{t("bandProfile.epkLink")}</span>
                   <input
-                    value={form.epk_url ?? ""}
+                    value={form.epk_url}
                     onChange={(e) => set("epk_url", e.target.value)}
                     inputMode="url"
                     placeholder="https://…"
                   />
                 </label>
               </div>
+            </fieldset>
+
+            <fieldset className="sheet-section">
+              <legend className="sheet-legend">
+                {t("bandProfile.templateLegend")}
+              </legend>
+              <p className="draft-source" style={{ margin: "0 0 0.6rem" }}>
+                {t("bandProfile.templateHint")}
+              </p>
+              <label className="field field-wide">
+                <span className="band-template-head">
+                  {t("bandProfile.templateFr")}
+                  <button
+                    type="button"
+                    className="band-template-reset"
+                    onClick={() => {
+                      setTemplateFr(defaultFr);
+                      setSaved(false);
+                    }}
+                    disabled={templateFr.trim() === defaultFr.trim()}
+                  >
+                    {t("bandProfile.resetDefault")}
+                  </button>
+                </span>
+                <textarea
+                  className="draft-body"
+                  rows={16}
+                  value={templateFr}
+                  onChange={(e) => {
+                    setTemplateFr(e.target.value);
+                    setSaved(false);
+                  }}
+                />
+              </label>
+              <label className="field field-wide">
+                <span className="band-template-head">
+                  {t("bandProfile.templateEn")}
+                  <button
+                    type="button"
+                    className="band-template-reset"
+                    onClick={() => {
+                      setTemplateEn(defaultEn);
+                      setSaved(false);
+                    }}
+                    disabled={templateEn.trim() === defaultEn.trim()}
+                  >
+                    {t("bandProfile.resetDefault")}
+                  </button>
+                </span>
+                <textarea
+                  className="draft-body"
+                  rows={16}
+                  value={templateEn}
+                  onChange={(e) => {
+                    setTemplateEn(e.target.value);
+                    setSaved(false);
+                  }}
+                />
+              </label>
             </fieldset>
 
             {error && <p className="sheet-error">{error}</p>}

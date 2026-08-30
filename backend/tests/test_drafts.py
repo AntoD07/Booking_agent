@@ -47,6 +47,26 @@ def test_profile_blank_name_rejected(auth_client):
     assert auth_client.put("/api/band-profile", json={"band_name": "  "}).status_code == 422
 
 
+def test_profile_exposes_default_templates(auth_client):
+    body = auth_client.get("/api/band-profile").json()
+    # No override yet, but the current defaults are handed back for the editor.
+    assert body["template_en"] is None
+    assert body["instagram"] is None
+    assert "Two excerpts of our recent arrangements" in body["default_template_en"]
+    assert "Bonjour {greeting}" in body["default_template_fr"]
+
+
+def test_blank_template_resets_to_default(auth_client):
+    auth_client.get("/api/band-profile")
+    saved = auth_client.put(
+        "/api/band-profile", json={"template_en": "Hi {greeting}"}
+    ).json()
+    assert saved["template_en"] == "Hi {greeting}"
+    # A whitespace-only template is stored as NULL → back to the default.
+    reset = auth_client.put("/api/band-profile", json={"template_en": "   "}).json()
+    assert reset["template_en"] is None
+
+
 # --- Generating a draft ---------------------------------------------------
 
 
@@ -107,7 +127,7 @@ def test_generate_uses_profile_links_and_greeting(auth_client, band, monkeypatch
     assert "https://youtu.be/one" in body
     assert "https://gipsytonic.com/epk" in body
     assert "[lien vidéo 2]" in body  # video2 still unset → placeholder
-    assert "booking@gipsytonic.com · gipsytonic.com" in body
+    assert "Mail : booking@gipsytonic.com" in body
 
 
 def test_generate_personalisation_and_source_from_claude(
@@ -143,6 +163,28 @@ def test_generate_personalisation_and_source_from_claude(
     with SessionLocal() as db:
         notes = db.get(Venue, vid).research_notes or ""
         assert notes.count("Programmation 2026") == 1
+
+
+def test_generate_uses_overridden_template_and_instagram(
+    auth_client, band, monkeypatch
+):
+    _no_key(monkeypatch)
+    auth_client.put(
+        "/api/band-profile",
+        json={
+            "instagram": "@gipsy_tonic",
+            "email": "booking@gipsytonic.com",
+            "template_en": "Hi {greeting}. {personalisation}\n\n{contact_block}",
+        },
+    )
+    with SessionLocal() as db:
+        vid = _make_venue(db, band.id, name="Torino", country="Italy").id
+    body = auth_client.post(f"/api/venues/{vid}/drafts").json()["body"]
+    assert body.startswith("Hi the Torino team.")
+    assert "Instagram : @gipsy_tonic" in body
+    assert "Mail : booking@gipsytonic.com" in body
+    # The default prose is gone: the band's own template replaced it.
+    assert "We're Gipsy Tonic" not in body
 
 
 def test_generate_unknown_venue_404(auth_client, monkeypatch):

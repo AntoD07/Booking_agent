@@ -1,8 +1,9 @@
-"""Build a festival-application email for a venue from the band's fixed template.
+"""Build a festival-application email for a venue from the band's template.
 
-The pitch prose is approved and fixed — the band's story does not change per
-venue. Only two things vary and both are reviewed by a human before anything
-is sent (the app never sends email itself):
+The pitch prose comes from the band profile's editable template (or the
+DEFAULT_TEMPLATE_* below when it has never been changed). Only two things
+vary per venue and both are reviewed by a human before anything is sent (the
+app never sends email itself):
 
 1. the personalisation hook — one or two sentences naming a real artist from
    the venue's recent programming and the link to its spirit; and
@@ -77,9 +78,11 @@ _NOT_A_FIRST_NAME = {
     "association",
 }
 
-# The fixed body. Only the bracketed {tokens} are filled per venue; the prose
-# in between is the band's approved pitch and must match it exactly.
-_FRENCH_BODY = """\
+# The default pitch body per language. The prose is the band's approved pitch;
+# only the {tokens} are filled per venue and per profile. A band can override
+# these from the Band profile panel (BandProfile.template_fr / template_en);
+# these constants are the fallback and the "reset to default" text.
+DEFAULT_TEMPLATE_FR = """\
 Bonjour {greeting},
 
 {personalisation}
@@ -99,7 +102,7 @@ Vera Ortiz.
 
 On aimerait beaucoup le défendre sur scène chez vous {date_line}.
 
-Deux extraits live qui donnent une bonne idée de notre énergie sur scène :
+Deux extraits de nos arrangements récents :
 - {video1}
 - {video2}
 
@@ -110,9 +113,10 @@ Je reste à dispo pour toute information complémentaire.
 
 Musicalement,
 {signature_name} pour {band_name}
-{contact_line}"""
 
-_ENGLISH_BODY = """\
+{contact_block}"""
+
+DEFAULT_TEMPLATE_EN = """\
 Hello {greeting},
 
 {personalisation}
@@ -131,7 +135,7 @@ canvas, with liner notes by guitarist Rodrigue Vera Ortiz.
 
 We'd love to bring it to your stage {date_line}.
 
-Two live excerpts that give a good sense of our stage energy:
+Two excerpts of our recent arrangements :
 - {video1}
 - {video2}
 
@@ -141,7 +145,31 @@ Happy to share anything else you need.
 
 Musically yours,
 {signature_name} for {band_name}
-{contact_line}"""
+
+{contact_block}"""
+
+# Contact-block labels per language, built from the profile below.
+_CONTACT_LABELS = {
+    "fr": {"phone": "Tél", "email": "Mail"},
+    "en": {"phone": "Phone", "email": "Mail"},
+}
+
+# Tokens a band may use when editing its template, surfaced in the panel help.
+TEMPLATE_TOKENS = [
+    "greeting",
+    "personalisation",
+    "date_line",
+    "video1",
+    "video2",
+    "epk",
+    "contact_block",
+    "phone",
+    "email",
+    "instagram",
+    "website",
+    "band_name",
+    "signature_name",
+]
 
 # Placeholders left in the body when the band profile has no link yet, so the
 # gap is obvious in the draft rather than an empty bullet.
@@ -278,9 +306,26 @@ def _greeting(venue: Venue, language: str) -> str:
     return f"the {venue.name} team"
 
 
-def _contact_line(profile: BandProfile) -> str:
-    parts = [profile.phone, profile.email, profile.website]
-    return " · ".join(part for part in parts if part and part.strip())
+def _contact_block(profile: BandProfile, language: str) -> str:
+    """The signature's labelled contact lines, skipping fields left empty."""
+    labels = _CONTACT_LABELS[language]
+    lines = []
+    if profile.phone and profile.phone.strip():
+        lines.append(f"{labels['phone']} : {profile.phone.strip()}")
+    if profile.email and profile.email.strip():
+        lines.append(f"{labels['email']} : {profile.email.strip()}")
+    if profile.instagram and profile.instagram.strip():
+        lines.append(f"Instagram : {profile.instagram.strip()}")
+    return "\n".join(lines)
+
+
+_TOKEN_RE = re.compile(r"\{(\w+)\}")
+
+
+def _render(template: str, values: dict[str, str]) -> str:
+    """Fill {token} placeholders, leaving any unknown ones untouched so an
+    edited template can never crash the draft."""
+    return _TOKEN_RE.sub(lambda m: values.get(m.group(1), m.group(0)), template)
 
 
 def _appearances_text(venue: Venue, language: str) -> str:
@@ -372,23 +417,28 @@ def build_draft(
 
     if language == "fr":
         subject = f"{band_name} : Candidature {venue.name} {year} (sortie d'album)"
-        template = _FRENCH_BODY
+        template = profile.template_fr or DEFAULT_TEMPLATE_FR
     else:
         subject = f"{band_name}: Application {venue.name} {year} (album release)"
-        template = _ENGLISH_BODY
+        template = profile.template_en or DEFAULT_TEMPLATE_EN
 
     personalisation, source, program_links = _research_personalisation(
         venue, language, api_key
     )
-    body = template.format(
-        greeting=_greeting(venue, language),
-        personalisation=personalisation,
-        date_line=_date_line(venue, language, year),
-        band_name=band_name,
-        signature_name=profile.signature_name or "Antony",
-        contact_line=_contact_line(profile),
-        video1=(profile.video1_url or fill["video1"]),
-        video2=(profile.video2_url or fill["video2"]),
-        epk=(profile.epk_url or fill["epk"]),
-    )
+    values = {
+        "greeting": _greeting(venue, language),
+        "personalisation": personalisation,
+        "date_line": _date_line(venue, language, year),
+        "band_name": band_name,
+        "signature_name": profile.signature_name or "Antony",
+        "contact_block": _contact_block(profile, language),
+        "phone": (profile.phone or "").strip(),
+        "email": (profile.email or "").strip(),
+        "instagram": (profile.instagram or "").strip(),
+        "website": (profile.website or "").strip(),
+        "video1": (profile.video1_url or fill["video1"]),
+        "video2": (profile.video2_url or fill["video2"]),
+        "epk": (profile.epk_url or fill["epk"]),
+    }
+    body = _render(template, values)
     return subject[:300], body, source, program_links

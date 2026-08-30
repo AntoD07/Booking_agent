@@ -160,9 +160,16 @@ class BandProfileOut(BaseModel):
     phone: str | None
     email: str | None
     website: str | None
+    instagram: str | None
     video1_url: str | None
     video2_url: str | None
     epk_url: str | None
+    # The band's own template, or null when it still tracks the default.
+    template_fr: str | None
+    template_en: str | None
+    # The current defaults, so the panel can pre-fill and offer "reset".
+    default_template_fr: str
+    default_template_en: str
 
 
 class BandProfileUpdate(BaseModel):
@@ -171,9 +178,20 @@ class BandProfileUpdate(BaseModel):
     phone: str | None = None
     email: str | None = None
     website: str | None = None
+    instagram: str | None = None
     video1_url: str | None = None
     video2_url: str | None = None
     epk_url: str | None = None
+    # A blank/whitespace template is stored as NULL, i.e. back to the default.
+    template_fr: str | None = None
+    template_en: str | None = None
+
+    @field_validator("template_fr", "template_en")
+    @classmethod
+    def _blank_template_is_default(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            return None
+        return value
 
     @field_validator("band_name", "signature_name")
     @classmethod

@@ -135,6 +135,40 @@
   font-size: 0.8rem;
 }
 
+/* A find that differs from the card: highlighted, never applied. */
+.research-finding--conflict {
+  border-left: 3px solid #b8862e;
+  background: rgba(184, 134, 46, 0.08);
+  border-radius: 4px;
+  padding-left: 0.6rem;
+}
+
+.research-oncard {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.research-conflict-badge {
+  font-size: 0.75rem;
+  color: #7a5310;
+  border: 1px solid #b8862e;
+  border-radius: 3px;
+  padding: 0.05rem 0.4rem;
+  cursor: help;
+  white-space: nowrap;
+}
+
+/* The search found exactly what the card already says. */
+.research-confirms {
+  font-size: 0.75rem;
+  color: #5f7a4e;
+  border: 1px solid rgba(95, 122, 78, 0.45);
+  border-radius: 3px;
+  padding: 0.05rem 0.4rem;
+  white-space: nowrap;
+}
+
 /* A found value not applied because the field was human-entered. */
 .research-kept {
   font-size: 0.75rem;
@@ -144,6 +178,11 @@
   padding: 0.05rem 0.4rem;
   cursor: help;
   white-space: nowrap;
+}
+
+.research-url {
+  color: var(--accent);
+  overflow-wrap: anywhere;
 }
 
 .research-source {

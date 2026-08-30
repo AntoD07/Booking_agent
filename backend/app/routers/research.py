@@ -178,11 +178,26 @@ def _run_research(
                 )
             else:
                 lead = f"Checked {run.venues_checked} venues — nothing new to add"
-            run.summary = lead + (
-                f". {kept} finding{'s' if kept != 1 else ''} kept for review."
-                if kept
-                else "."
+            # A "conflict" is a find that differs from what the card already
+            # says — kept aside, never applied, flagged for manual checking.
+            conflicts = sum(
+                1
+                for f in run.findings
+                if not f.applied and f.old_value and f.old_value != f.new_value
             )
+            other_kept = kept - conflicts
+            tail = []
+            if conflicts:
+                tail.append(
+                    f"{conflicts} conflict{'s' if conflicts != 1 else ''} "
+                    "with the card to verify"
+                )
+            if other_kept:
+                tail.append(
+                    f"{other_kept} finding{'s' if other_kept != 1 else ''} "
+                    "kept for review"
+                )
+            run.summary = lead + (". " + ", ".join(tail) + "." if tail else ".")
             run.status = "completed"
             run.note = None
             run.finished_at = _now()

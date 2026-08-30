@@ -26,6 +26,31 @@ function fieldLabel(field: string, t: (key: string) => string): string {
   return key ? t(key) : field;
 }
 
+/** Render any URL inside a value as a real link — programme pages, websites,
+ * application forms — so nothing has to be copied by hand to be checked. */
+function Linkified({ text }: { text: string }) {
+  const parts = text.split(/(https?:\/\/[^\s)]+)/g);
+  return (
+    <>
+      {parts.map((part, index) =>
+        /^https?:\/\//.test(part) ? (
+          <a
+            key={index}
+            className="research-url"
+            href={part.replace(/[.,;]+$/, "")}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {part}
+          </a>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
+}
+
 /** Deadlines travel as "YYYY-MM"; show just the month — the season is 2027. */
 function formatValue(finding: ResearchFinding, lang: Lang): string {
   if (
@@ -69,53 +94,91 @@ function FindingsList({ findings }: { findings: ResearchFinding[] }) {
         <section className="research-venue" key={venueName}>
           <h3 className="research-venue-name">{venueName}</h3>
           <ul className="research-findings">
-            {list.map((finding) => (
-              <li className="research-finding" key={finding.id}>
-                <span
-                  className={`conf-dot conf-${finding.confidence}`}
-                  title={
-                    finding.confidence === "high"
-                      ? t("researchDialog.confHigh")
-                      : t("researchDialog.confMedium")
-                  }
-                />
-                {finding.source && (
-                  <a
-                    className="research-source"
-                    href={finding.source}
-                    target="_blank"
-                    rel="noreferrer"
-                    title={t("researchDialog.sourceTitle")}
-                  >
-                    {t("researchDialog.sourceLink")}
-                  </a>
-                )}
-                <span className="research-field">
-                  {fieldLabel(finding.field, t)}
-                </span>
-                <span className="research-value">
-                  {formatValue(finding, lang)}
-                  {finding.old_value &&
-                    finding.applied &&
-                    finding.field !== "note" && (
-                      <span className="research-old">
-                        {" "}
-                        {t("researchDialog.wasValue", {
-                          value: finding.old_value,
-                        })}
+            {list.map((finding) => {
+              // A find that differs from what the card says is a conflict:
+              // never applied, highlighted for manual checking against the
+              // source. An identical find quietly confirms the card.
+              const conflict =
+                !finding.applied &&
+                Boolean(finding.old_value) &&
+                finding.old_value !== finding.new_value;
+              const confirms =
+                !finding.applied &&
+                Boolean(finding.old_value) &&
+                finding.old_value === finding.new_value;
+              return (
+                <li
+                  className={`research-finding${
+                    conflict ? " research-finding--conflict" : ""
+                  }`}
+                  key={finding.id}
+                >
+                  <span
+                    className={`conf-dot conf-${finding.confidence}`}
+                    title={
+                      finding.confidence === "high"
+                        ? t("researchDialog.confHigh")
+                        : t("researchDialog.confMedium")
+                    }
+                  />
+                  {finding.source && (
+                    <a
+                      className="research-source"
+                      href={finding.source}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={t("researchDialog.sourceTitle")}
+                    >
+                      {t("researchDialog.sourceLink")}
+                    </a>
+                  )}
+                  <span className="research-field">
+                    {fieldLabel(finding.field, t)}
+                  </span>
+                  <span className="research-value">
+                    <Linkified text={formatValue(finding, lang)} />
+                    {finding.old_value &&
+                      finding.applied &&
+                      finding.field !== "note" && (
+                        <span className="research-old">
+                          {" "}
+                          {t("researchDialog.wasValue", {
+                            value: finding.old_value,
+                          })}
+                        </span>
+                      )}
+                    {conflict && (
+                      <span className="research-oncard">
+                        <Linkified
+                          text={t("researchDialog.onCard", {
+                            value: finding.old_value ?? "",
+                          })}
+                        />
                       </span>
                     )}
-                </span>
-                {!finding.applied && (
-                  <span
-                    className="research-kept"
-                    title={t("researchDialog.keptTitle")}
-                  >
-                    {t("researchDialog.keptYours")}
                   </span>
-                )}
-              </li>
-            ))}
+                  {conflict ? (
+                    <span
+                      className="research-conflict-badge"
+                      title={t("researchDialog.conflictTitle")}
+                    >
+                      {t("researchDialog.conflict")}
+                    </span>
+                  ) : confirms ? (
+                    <span className="research-confirms">
+                      {t("researchDialog.matchesCard")}
+                    </span>
+                  ) : !finding.applied ? (
+                    <span
+                      className="research-kept"
+                      title={t("researchDialog.keptTitle")}
+                    >
+                      {t("researchDialog.keptYours")}
+                    </span>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         </section>
       ))}

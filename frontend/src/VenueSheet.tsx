@@ -47,6 +47,34 @@ function toHref(url: string): string {
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
+/** Every URL in the notes, as clickable chips — a textarea can't hold real
+ * links, so they render just below it. Programme lines keep their year label;
+ * anything else is labelled by its domain. */
+function linksInNotes(notes: string): { label: string; url: string }[] {
+  const out: { label: string; url: string }[] = [];
+  const seen = new Set<string>();
+  for (const line of notes.split("\n")) {
+    for (const raw of line.match(/https?:\/\/[^\s)]+/g) ?? []) {
+      const url = raw.replace(/[.,;]+$/, "");
+      if (seen.has(url)) continue;
+      seen.add(url);
+      const programme = line.match(/Programmation\s+((?:19|20)\d{2})/i);
+      let label: string;
+      if (programme) {
+        label = `Programmation ${programme[1]}`;
+      } else {
+        try {
+          label = new URL(url).hostname.replace(/^www\./, "");
+        } catch {
+          label = url;
+        }
+      }
+      out.push({ label, url });
+    }
+  }
+  return out;
+}
+
 function initForm(venue: Venue | null): FormState {
   return {
     name: venue?.name ?? "",
@@ -397,7 +425,19 @@ export default function VenueSheet({
                 />
               </label>
               <label className="field">
-                <span>{t("venueSheet.applicationLink")}{confidenceDot("application_url")}</span>
+                <span>
+                  {t("venueSheet.applicationLink")}{confidenceDot("application_url")}
+                  {form.application_url.trim() && (
+                    <a
+                      className="field-link"
+                      href={toHref(form.application_url)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {t("venueSheet.openLink")}
+                    </a>
+                  )}
+                </span>
                 <input
                   value={form.application_url}
                   onChange={(e) => set("application_url", e.target.value)}
@@ -461,14 +501,29 @@ export default function VenueSheet({
           <fieldset className="sheet-section">
             <legend className="sheet-legend">{t("venueSheet.notes")}</legend>
             <div className="sheet-grid">
-              <label className="field field-wide">
+              <div className="field field-wide">
                 <span>{t("venueSheet.researchNotes")}{confidenceDot("research_notes")}</span>
                 <textarea
                   value={form.research_notes}
                   onChange={(e) => set("research_notes", e.target.value)}
                   rows={4}
                 />
-              </label>
+                {linksInNotes(form.research_notes).length > 0 && (
+                  <p className="notes-links">
+                    {linksInNotes(form.research_notes).map((link) => (
+                      <a
+                        key={link.url}
+                        className="notes-link"
+                        href={link.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {link.label} ↗
+                      </a>
+                    ))}
+                  </p>
+                )}
+              </div>
               <label className="field">
                 <span>{t("venueSheet.source")}{confidenceDot("source")}</span>
                 <input

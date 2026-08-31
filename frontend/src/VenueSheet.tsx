@@ -6,6 +6,7 @@ import {
   updateVenue,
 } from "./api";
 import DraftPanel from "./DraftPanel";
+import VenueHistory from "./VenueHistory";
 import {
   ADDED_BY_OPTIONS,
   VENUE_STATUSES,
@@ -164,7 +165,6 @@ export default function VenueSheet({
   const [sources, setSources] = useState<Record<string, string>>(
     venue?.field_sources ?? {},
   );
-
   function set<K extends keyof FormState>(field: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [field]: value }));
     // The two deadline selects map onto the single API field.
@@ -560,6 +560,10 @@ export default function VenueSheet({
               onVenueChanged={onVenueChanged}
               onUnauthorized={onUnauthorized}
             />
+          )}
+
+          {venue && (
+            <VenueHistory venueId={venue.id} onUnauthorized={onUnauthorized} />
           )}
 
           {error && <p className="sheet-error">{error}</p>}

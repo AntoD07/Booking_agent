@@ -92,8 +92,15 @@ class Venue(Base):
     # When "Search & fill" last researched this venue; recently researched
     # venues are skipped so repeated runs move through the whole pipeline.
     last_researched: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Who last touched this card and when — denormalized from the edit log for
+    # the "Modified by" line on the card. "Claude" for research edits.
+    last_modified_by: Mapped[str | None] = mapped_column(String(100))
+    last_modified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     artists: Mapped[list["VenueArtist"]] = relationship(
+        back_populates="venue", cascade="all, delete-orphan"
+    )
+    edits: Mapped[list["VenueEdit"]] = relationship(
         back_populates="venue", cascade="all, delete-orphan"
     )
     drafts: Mapped[list["EmailDraft"]] = relationship(
@@ -141,6 +148,36 @@ class VenueArtist(Base):
     @property
     def name(self) -> str:
         return self.artist.name
+
+
+class VenueEdit(Base):
+    """One recorded change to a venue card — who did what, and when.
+
+    `action` is a coarse verb (created / updated / status / artist_added /
+    artist_removed). `changes` holds the structured detail the UI renders,
+    localised client-side: for edits, a list of {field, from, to}; for an
+    artist appearance, {artist, year}. `venue_name` is kept denormalised so
+    the log stays readable if the venue is later deleted.
+    """
+
+    __tablename__ = "venue_edits"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    band_id: Mapped[int] = mapped_column(
+        ForeignKey("bands.id", ondelete="CASCADE"), index=True
+    )
+    venue_id: Mapped[int | None] = mapped_column(
+        ForeignKey("venues.id", ondelete="SET NULL"), index=True
+    )
+    venue_name: Mapped[str] = mapped_column(String(200))
+    editor: Mapped[str | None] = mapped_column(String(100))
+    action: Mapped[str] = mapped_column(String(20))
+    changes: Mapped[list | dict | None] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    venue: Mapped["Venue"] = relationship(back_populates="edits")
 
 
 class EmailDraft(Base):
@@ -192,6 +229,8 @@ class BandProfile(Base):
     # still tracks changes to the default.
     template_fr: Mapped[str | None] = mapped_column(Text)
     template_en: Mapped[str | None] = mapped_column(Text)
+    # The band's members, offered as the "who's editing" picker after login.
+    members: Mapped[list | None] = mapped_column(JSON)
 
 
 class ResearchRun(Base):

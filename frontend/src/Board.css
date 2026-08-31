@@ -87,6 +87,28 @@
   color: var(--accent);
 }
 
+.board-editor {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 0.25rem 0.7rem;
+}
+
+.board-editor:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.venue-modified {
+  margin: 0.55rem 0 0;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
 .board-filters {
   display: flex;
   flex-wrap: wrap;

@@ -165,6 +165,24 @@ export interface BandProfile {
   /** Current defaults (read-only), for pre-filling the editor and resetting. */
   default_template_fr: string;
   default_template_en: string;
+  members: string[];
+}
+
+/** One field change inside an edit-history entry. */
+export interface FieldChange {
+  field: string;
+  from: string | null;
+  to: string | null;
+}
+
+/** One entry in a venue card's change history. */
+export interface VenueEdit {
+  id: number;
+  venue_id: number | null;
+  editor: string | null;
+  action: "created" | "updated" | "status" | "artist_added" | "artist_removed";
+  changes: FieldChange[] | { artist?: string; year?: string | null } | null;
+  created_at: string;
 }
 
 export interface Venue {
@@ -190,5 +208,7 @@ export interface Venue {
   added_by: string | null;
   field_confidence: Record<string, string> | null;
   field_sources: Record<string, string> | null;
+  last_modified_by: string | null;
+  last_modified_at: string | null;
   artists: VenueArtistAppearance[];
 }

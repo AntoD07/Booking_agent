@@ -5,11 +5,13 @@ import {
   fetchResearchRun,
   fetchVenues,
   logout,
+  setEditor as apiSetEditor,
   startResearch,
   updateVenue,
 } from "./api";
 import BandProfileSheet from "./BandProfileSheet";
 import Board from "./Board";
+import EditorPicker, { EDITOR_STORAGE_KEY } from "./EditorPicker";
 import { useT } from "./i18n";
 import Login from "./Login";
 import ManualScan from "./ManualScan";
@@ -55,6 +57,8 @@ export default function App() {
   const t = useT();
   const [session, setSession] = useState<Session>("checking");
   const [bandName, setBandName] = useState("");
+  // The bandmate this device edits under; null until picked (or remembered).
+  const [editor, setEditorState] = useState<string | null>(null);
   const [view, setView] = useState<View>("board");
   const [venues, setVenues] = useState<Venue[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -168,14 +172,39 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [researchRun?.id]);
 
+  // Adopt a signed-in session: set the band, and reuse a remembered editor
+  // name (silently, via the cookie) so returning users aren't asked again.
+  const adoptSession = useCallback(
+    async (s: { band_name: string; editor: string | null }) => {
+      setBandName(s.band_name);
+      let ed = s.editor;
+      if (!ed) {
+        let saved: string | null = null;
+        try {
+          saved = localStorage.getItem(EDITOR_STORAGE_KEY);
+        } catch {
+          saved = null;
+        }
+        if (saved) {
+          try {
+            await apiSetEditor(saved);
+            ed = saved;
+          } catch {
+            ed = null;
+          }
+        }
+      }
+      setEditorState(ed);
+      setSession("authenticated");
+    },
+    [],
+  );
+
   useEffect(() => {
     checkSession()
-      .then((session) => {
-        setBandName(session.band_name);
-        setSession("authenticated");
-      })
+      .then(adoptSession)
       .catch(() => setSession("anonymous"));
-  }, []);
+  }, [adoptSession]);
 
   useEffect(() => {
     if (session === "authenticated") {
@@ -192,13 +221,17 @@ export default function App() {
       <Login
         onSuccess={() =>
           checkSession()
-            .then((s) => {
-              setBandName(s.band_name);
-              setSession("authenticated");
-            })
+            .then(adoptSession)
             .catch(() => setSession("anonymous"))
         }
       />
+    );
+  }
+
+  // Signed in but no bandmate chosen yet: ask who's editing before the board.
+  if (!editor) {
+    return (
+      <EditorPicker bandName={bandName} onPicked={(name) => setEditorState(name)} />
     );
   }
 
@@ -221,10 +254,13 @@ export default function App() {
         venues={venues}
         error={error}
         bandName={bandName}
+        editor={editor}
+        onChangeEditor={() => setEditorState(null)}
         onSignOut={async () => {
           await logout();
           setSession("anonymous");
           setBandName("");
+          setEditorState(null);
           setVenues([]);
         }}
         onAddVenue={() => setActive("new")}

@@ -90,7 +90,22 @@ class VenueOut(VenueBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    last_modified_by: str | None = None
+    last_modified_at: datetime | None = None
     artists: list[VenueArtistOut] = []
+
+
+class VenueEditOut(BaseModel):
+    """One entry in a venue's change history."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    venue_id: int | None
+    editor: str | None
+    action: str
+    changes: list | dict | None
+    created_at: datetime
 
 
 class ArtistBase(BaseModel):
@@ -170,6 +185,12 @@ class BandProfileOut(BaseModel):
     # The current defaults, so the panel can pre-fill and offer "reset".
     default_template_fr: str
     default_template_en: str
+    members: list[str] = []
+
+    @field_validator("members", mode="before")
+    @classmethod
+    def _members_default(cls, value: list[str] | None) -> list[str]:
+        return value or []
 
 
 class BandProfileUpdate(BaseModel):
@@ -185,6 +206,7 @@ class BandProfileUpdate(BaseModel):
     # A blank/whitespace template is stored as NULL, i.e. back to the default.
     template_fr: str | None = None
     template_en: str | None = None
+    members: list[str] | None = None
 
     @field_validator("template_fr", "template_en")
     @classmethod
@@ -199,6 +221,18 @@ class BandProfileUpdate(BaseModel):
         if value is not None and not value.strip():
             raise ValueError("must not be blank")
         return value.strip() if value is not None else value
+
+    @field_validator("members")
+    @classmethod
+    def _clean_members(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        seen: list[str] = []
+        for name in value:
+            name = (name or "").strip()
+            if name and name.lower() not in {n.lower() for n in seen}:
+                seen.append(name)
+        return seen
 
 
 class DiscoveryRequest(BaseModel):
@@ -340,6 +374,15 @@ class SessionOut(BaseModel):
 
     authenticated: bool = True
     band_name: str
+    editor: str | None = None
+
+
+class EditorSet(BaseModel):
+    """Pick the bandmate name this device edits under."""
+
+    name: str
+
+    _validate_name = field_validator("name")(_require_name)
 
 
 class RegisterBandRequest(BaseModel):

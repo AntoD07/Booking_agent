@@ -116,3 +116,33 @@
   justify-content: center;
   margin-top: 1.75rem;
 }
+
+.editor-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.editor-member {
+  padding: 0.55rem 1rem;
+  font-size: 1rem;
+  font-family: var(--sans);
+  color: var(--ink);
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.editor-member:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.editor-member:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

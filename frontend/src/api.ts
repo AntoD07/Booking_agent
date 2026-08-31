@@ -6,6 +6,7 @@ import type {
   ResearchRun,
   Suggestion,
   Venue,
+  VenueEdit,
   VenueInput,
   VenueType,
 } from "./types";
@@ -62,8 +63,26 @@ export function logout(): Promise<{ ok: boolean }> {
 export function checkSession(): Promise<{
   authenticated: boolean;
   band_name: string;
+  editor: string | null;
 }> {
   return request("/api/auth/me");
+}
+
+export function setEditor(
+  name: string,
+): Promise<{ band_name: string; editor: string | null }> {
+  return request("/api/auth/editor", {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function fetchEditors(): Promise<string[]> {
+  return request("/api/auth/editors");
+}
+
+export function fetchVenueHistory(venueId: number): Promise<VenueEdit[]> {
+  return request(`/api/venues/${venueId}/history`);
 }
 
 export function fetchVenues(): Promise<Venue[]> {

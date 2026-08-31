@@ -150,6 +150,19 @@ function VenueCard({
           </option>
         ))}
       </select>
+      {venue.last_modified_by && (
+        <p className="venue-modified">
+          {t("board.modifiedBy", {
+            name: venue.last_modified_by,
+            date: venue.last_modified_at
+              ? new Date(venue.last_modified_at).toLocaleDateString(lang, {
+                  day: "numeric",
+                  month: "short",
+                })
+              : "",
+          })}
+        </p>
+      )}
     </article>
   );
 }
@@ -158,6 +171,8 @@ interface BoardProps {
   venues: Venue[];
   error: string | null;
   bandName: string;
+  editor: string | null;
+  onChangeEditor: () => void;
   onSignOut: () => void;
   onAddVenue: () => void;
   onOpenScan: () => void;
@@ -170,6 +185,8 @@ export default function Board({
   venues,
   error,
   bandName,
+  editor,
+  onChangeEditor,
   onSignOut,
   onAddVenue,
   onOpenScan,
@@ -230,6 +247,15 @@ export default function Board({
           <h1 className="board-title">{t("board.title")}</h1>
         </div>
         <div className="board-actions">
+          {editor && (
+            <button
+              className="board-editor"
+              onClick={onChangeEditor}
+              title={t("board.changeEditor")}
+            >
+              {t("board.editingAs", { name: editor })}
+            </button>
+          )}
           <LangSwitcher />
           <button className="board-add" onClick={onAddVenue}>
             {t("board.addVenue")}

@@ -33,6 +33,13 @@ const EMPTY_FORM: FormState = {
   epk_url: "",
 };
 
+function parseMembers(text: string): string[] {
+  return text
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
 export default function BandProfileSheet({
   onClose,
   onUnauthorized,
@@ -44,6 +51,8 @@ export default function BandProfileSheet({
   const [templateEn, setTemplateEn] = useState("");
   const [defaultFr, setDefaultFr] = useState("");
   const [defaultEn, setDefaultEn] = useState("");
+  // Members edited as a comma-separated line; parsed to a list on save.
+  const [membersText, setMembersText] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +85,7 @@ export default function BandProfileSheet({
         // Show the band's own body, or the default when it still tracks it.
         setTemplateFr(profile.template_fr ?? profile.default_template_fr);
         setTemplateEn(profile.template_en ?? profile.default_template_en);
+        setMembersText((profile.members ?? []).join(", "));
         setLoading(false);
       })
       .catch((err) => {
@@ -116,6 +126,7 @@ export default function BandProfileSheet({
         epk_url: text(form.epk_url),
         template_fr: templatePatch(templateFr, defaultFr),
         template_en: templatePatch(templateEn, defaultEn),
+        members: parseMembers(membersText),
       });
       setBusy(false);
       setSaved(true);
@@ -208,9 +219,25 @@ export default function BandProfileSheet({
             </fieldset>
 
             <fieldset className="sheet-section">
-              <legend className="sheet-legend">
-                {t("bandProfile.linksLegend")}
-              </legend>
+              <legend className="sheet-legend">{t("bandProfile.membersLegend")}</legend>
+              <div className="sheet-grid">
+                <label className="field field-wide">
+                  <span>{t("bandProfile.members")}</span>
+                  <input
+                    value={membersText}
+                    onChange={(e) => {
+                      setMembersText(e.target.value);
+                      setSaved(false);
+                    }}
+                    placeholder={t("bandProfile.membersPlaceholder")}
+                  />
+                  <small className="field-hint">{t("bandProfile.membersHint")}</small>
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset className="sheet-section">
+              <legend className="sheet-legend">{t("bandProfile.linksLegend")}</legend>
               <div className="sheet-grid">
                 <label className="field field-wide">
                   <span>{t("bandProfile.video1")}</span>

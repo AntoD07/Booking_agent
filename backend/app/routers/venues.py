@@ -2,10 +2,17 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.audit import apply_update, record_edit
 from app.db import get_db
-from app.models import Artist, Band, Venue, VenueArtist
-from app.schemas import AppearanceCreate, VenueCreate, VenueOut, VenueUpdate
-from app.security import current_band
+from app.models import Artist, Band, Venue, VenueArtist, VenueEdit
+from app.schemas import (
+    AppearanceCreate,
+    VenueCreate,
+    VenueEditOut,
+    VenueOut,
+    VenueUpdate,
+)
+from app.security import current_band, current_editor
 
 router = APIRouter(prefix="/api/venues", tags=["venues"])
 
@@ -33,9 +40,12 @@ def create_venue(
     payload: VenueCreate,
     db: Session = Depends(get_db),
     band: Band = Depends(current_band),
+    editor: str | None = Depends(current_editor),
 ) -> Venue:
     venue = Venue(**payload.model_dump(), band_id=band.id)
     db.add(venue)
+    db.flush()  # assign an id before recording the edit
+    record_edit(db, venue, editor, "created")
     db.commit()
     db.refresh(venue)
     return venue
@@ -56,13 +66,34 @@ def update_venue(
     payload: VenueUpdate,
     db: Session = Depends(get_db),
     band: Band = Depends(current_band),
+    editor: str | None = Depends(current_editor),
 ) -> Venue:
     venue = _get_or_404(db, band, venue_id)
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(venue, field, value)
+    changes = apply_update(venue, payload.model_dump(exclude_unset=True))
+    if changes:
+        # A move between columns is its own kind of edit; a broader edit is
+        # "updated". Either way the exact fields are in `changes`.
+        only_status = len(changes) == 1 and changes[0]["field"] == "status"
+        record_edit(db, venue, editor, "status" if only_status else "updated", changes)
     db.commit()
     db.refresh(venue)
     return venue
+
+
+@router.get("/{venue_id}/history", response_model=list[VenueEditOut])
+def venue_history(
+    venue_id: int,
+    db: Session = Depends(get_db),
+    band: Band = Depends(current_band),
+) -> list[VenueEdit]:
+    _get_or_404(db, band, venue_id)  # 404 across bands
+    return list(
+        db.scalars(
+            select(VenueEdit)
+            .where(VenueEdit.venue_id == venue_id, VenueEdit.band_id == band.id)
+            .order_by(VenueEdit.created_at.desc(), VenueEdit.id.desc())
+        )
+    )
 
 
 @router.delete("/{venue_id}", status_code=204)
@@ -82,6 +113,7 @@ def add_appearance(
     payload: AppearanceCreate,
     db: Session = Depends(get_db),
     band: Band = Depends(current_band),
+    editor: str | None = Depends(current_editor),
 ) -> Venue:
     """Record that a reference artist played this venue (creating the artist
     by name if needed). Posting the same artist again updates the year."""
@@ -101,6 +133,10 @@ def add_appearance(
         db.add(VenueArtist(venue_id=venue_id, artist_id=artist.id, year=payload.year))
     else:
         link.year = payload.year
+    record_edit(
+        db, venue, editor, "artist_added",
+        {"artist": artist.name, "year": payload.year},
+    )
     db.commit()
     db.refresh(venue)
     return venue
@@ -112,10 +148,13 @@ def remove_appearance(
     artist_id: int,
     db: Session = Depends(get_db),
     band: Band = Depends(current_band),
+    editor: str | None = Depends(current_editor),
 ) -> None:
-    _get_or_404(db, band, venue_id)  # 404 if the venue isn't this band's
+    venue = _get_or_404(db, band, venue_id)  # 404 if the venue isn't this band's
     link = db.get(VenueArtist, (venue_id, artist_id))
     if link is None:
         raise HTTPException(status_code=404, detail="Appearance not found")
+    artist_name = link.artist.name
     db.delete(link)
+    record_edit(db, venue, editor, "artist_removed", {"artist": artist_name})
     db.commit()

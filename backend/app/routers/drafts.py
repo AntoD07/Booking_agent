@@ -77,6 +77,7 @@ def _profile_out(profile: BandProfile) -> BandProfileOut:
         template_en=profile.template_en,
         default_template_fr=drafting.DEFAULT_TEMPLATE_FR,
         default_template_en=drafting.DEFAULT_TEMPLATE_EN,
+        members=profile.members or [],
     )
 
 

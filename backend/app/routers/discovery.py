@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import discovery
+from app.audit import record_edit
 from app.config import anthropic_api_key
 from app.db import SessionLocal, get_db
 from app.models import Artist, Band, Venue, VenueArtist, VenueStatus
@@ -23,7 +24,7 @@ from app.schemas import (
     SuggestionOut,
     VenueOut,
 )
-from app.security import current_band
+from app.security import current_band, current_editor
 
 logger = logging.getLogger(__name__)
 
@@ -282,6 +283,14 @@ def _run_enrichment_job(venue_id: int, api_key: str | None) -> None:
             filled.append(field)
         venue.field_confidence = confidence
         venue.field_sources = sources or None
+        if filled:
+            record_edit(
+                db,
+                venue,
+                "Claude",
+                "updated",
+                [{"field": f, "from": None, "to": "filled"} for f in filled],
+            )
         db.commit()
         logger.info(
             "enrichment: venue %s filled: %s", venue_id, ", ".join(filled) or "nothing"
@@ -296,6 +305,7 @@ def accept_suggestion(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     band: Band = Depends(current_band),
+    editor: str | None = Depends(current_editor),
 ) -> Venue:
     """Turn a reviewed suggestion into a pipeline venue.
 
@@ -344,6 +354,9 @@ def accept_suggestion(
                 venue_id=venue.id, artist_id=artist.id, year=payload.year
             )
         )
+    # Accepting a scouted suggestion is the human's action; the background
+    # research that follows is recorded separately as Claude's.
+    record_edit(db, venue, editor, "created")
     db.commit()
     db.refresh(venue)
     api_key = _api_key_for(band)

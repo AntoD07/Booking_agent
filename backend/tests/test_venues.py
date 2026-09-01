@@ -68,3 +68,40 @@ def test_patch_clears_optional_field_with_null(auth_client):
     patched = auth_client.patch(f"/api/venues/{venue['id']}", json={"city": None})
     assert patched.status_code == 200
     assert patched.json()["city"] is None
+
+
+def test_country_spelling_is_normalized(auth_client):
+    """"Suisse", "switzerland" and "Switzerland" must all land as one filter
+    entry — the canonical English name used by the imported data."""
+    created = auth_client.post(
+        "/api/venues", json={"name": "Chorus", "country": "Suisse"}
+    )
+    assert created.status_code == 201
+    venue = created.json()
+    assert venue["country"] == "Switzerland"
+
+    patched = auth_client.patch(
+        f"/api/venues/{venue['id']}", json={"country": "  allemagne "}
+    )
+    assert patched.json()["country"] == "Germany"
+
+    # Case-only variants of a canonical name are fixed too.
+    patched = auth_client.patch(
+        f"/api/venues/{venue['id']}", json={"country": "switzerland"}
+    )
+    assert patched.json()["country"] == "Switzerland"
+
+
+def test_unknown_country_kept_as_typed(auth_client):
+    created = auth_client.post(
+        "/api/venues", json={"name": "Django Fest", "country": "Andorra la Vella"}
+    )
+    assert created.json()["country"] == "Andorra la Vella"
+
+    # Clearing the country still works, and blank collapses to null.
+    venue_id = created.json()["id"]
+    assert (
+        auth_client.patch(f"/api/venues/{venue_id}", json={"country": "  "})
+        .json()["country"]
+        is None
+    )

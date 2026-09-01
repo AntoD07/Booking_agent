@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
+from app.countries import normalize_country
 from app.models import DraftStatus, VenueStatus, VenueType
 
 
@@ -9,6 +10,12 @@ def _require_name(value: str | None) -> str:
     if value is None or not value.strip():
         raise ValueError("name must not be blank")
     return value.strip()
+
+
+def _canonical_country(value: str | None) -> str | None:
+    """Every write path stores one spelling per country ("Suisse" →
+    "Switzerland"), so the board's country filter never shows twins."""
+    return normalize_country(value)
 
 
 class VenueBase(BaseModel):
@@ -35,6 +42,7 @@ class VenueBase(BaseModel):
     field_sources: dict[str, str] | None = None
 
     _validate_name = field_validator("name")(_require_name)
+    _validate_country = field_validator("country")(_canonical_country)
 
 
 class VenueCreate(VenueBase):
@@ -67,6 +75,7 @@ class VenueUpdate(BaseModel):
     # PATCH omitting name is fine, but an explicit blank/null name would
     # violate the not-null column, so reject it up front.
     _validate_name = field_validator("name")(_require_name)
+    _validate_country = field_validator("country")(_canonical_country)
 
 
 class VenueArtistOut(BaseModel):
@@ -312,6 +321,7 @@ class SuggestionAccept(BaseModel):
     source: str | None = None
 
     _validate_name = field_validator("name")(_require_name)
+    _validate_country = field_validator("country")(_canonical_country)
 
 
 class ResearchFindingOut(BaseModel):

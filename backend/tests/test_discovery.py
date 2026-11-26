@@ -493,3 +493,12 @@ def test_accept_without_artist(auth_client):
     venue = response.json()
     assert venue["source"] == "Scouting"
     assert venue["artists"] == []
+
+
+def test_accept_normalizes_country_spelling(auth_client):
+    response = auth_client.post(
+        "/api/discovery/accept",
+        json={"name": "Jazz au Peristyle", "country": "suisse"},
+    )
+    assert response.status_code == 201
+    assert response.json()["country"] == "Switzerland"

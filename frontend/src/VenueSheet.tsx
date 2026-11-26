@@ -131,7 +131,9 @@ function toPayload(
 interface VenueSheetProps {
   venue: Venue | null; // null → new venue
   onClose: () => void;
-  onSaved: () => void;
+  /** Save succeeded; the server's response is the fresh card to display. */
+  onSaved: (saved: Venue) => void;
+  onDeleted: (venueId: number) => void;
   /** Refresh the board without closing the sheet (e.g. a draft moved the card). */
   onVenueChanged: () => void;
   /** Run Search & fill on this venue (closes the sheet; the dialog takes over). */
@@ -143,6 +145,7 @@ export default function VenueSheet({
   venue,
   onClose,
   onSaved,
+  onDeleted,
   onVenueChanged,
   onResearch,
   onUnauthorized,
@@ -233,12 +236,10 @@ export default function VenueSheet({
     setError(null);
     try {
       const payload = toPayload(form, confidence, sources);
-      if (venue) {
-        await updateVenue(venue.id, payload);
-      } else {
-        await createVenue(payload);
-      }
-      onSaved();
+      const saved = venue
+        ? await updateVenue(venue.id, payload)
+        : await createVenue(payload);
+      onSaved(saved);
     } catch (err) {
       fail(err);
     }
@@ -268,7 +269,7 @@ export default function VenueSheet({
     setError(null);
     try {
       await deleteVenue(venue.id);
-      onSaved();
+      onDeleted(venue.id);
     } catch (err) {
       fail(err);
     }

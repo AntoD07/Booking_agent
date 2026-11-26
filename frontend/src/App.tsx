@@ -97,6 +97,17 @@ export default function App() {
     }
   }, [handleError]);
 
+  // Merge one venue into the board without refetching the whole list — a
+  // full reload costs a round trip to the free-tier backend, so a save
+  // would otherwise sit on stale cards for seconds.
+  const applyVenue = useCallback((saved: Venue) => {
+    setVenues((current) =>
+      current.some((v) => v.id === saved.id)
+        ? current.map((v) => (v.id === saved.id ? saved : v))
+        : [...current, saved],
+    );
+  }, []);
+
   // Open the dialog and, unless a run is already going, start a fresh one
   // researching the given venue (each card carries its own Search & fill).
   const openResearch = useCallback(async (venueId: number) => {
@@ -306,15 +317,16 @@ export default function App() {
       {active !== null && (
         <VenueSheet
           venue={active === "new" ? null : active}
-          onClose={() => {
+          onClose={() => setActive(null)}
+          onSaved={(saved) => {
             setActive(null);
-            // Artist appearances save immediately inside the sheet, so the
-            // board list may be stale even when the form itself wasn't saved.
-            loadVenues();
+            // The PATCH/POST response is the fresh card: show it right away
+            // instead of waiting on a full list reload.
+            applyVenue(saved);
           }}
-          onSaved={() => {
+          onDeleted={(venueId) => {
             setActive(null);
-            loadVenues();
+            setVenues((current) => current.filter((v) => v.id !== venueId));
           }}
           onVenueChanged={loadVenues}
           onResearch={() => {

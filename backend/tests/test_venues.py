@@ -68,3 +68,73 @@ def test_patch_clears_optional_field_with_null(auth_client):
     patched = auth_client.patch(f"/api/venues/{venue['id']}", json={"city": None})
     assert patched.status_code == 200
     assert patched.json()["city"] is None
+
+
+def test_country_spelling_is_normalized(auth_client):
+    """"Suisse", "switzerland" and "Switzerland" must all land as one filter
+    entry — the canonical English name used by the imported data."""
+    created = auth_client.post(
+        "/api/venues", json={"name": "Chorus", "country": "Suisse"}
+    )
+    assert created.status_code == 201
+    venue = created.json()
+    assert venue["country"] == "Switzerland"
+
+    patched = auth_client.patch(
+        f"/api/venues/{venue['id']}", json={"country": "  allemagne "}
+    )
+    assert patched.json()["country"] == "Germany"
+
+    # Case-only variants of a canonical name are fixed too.
+    patched = auth_client.patch(
+        f"/api/venues/{venue['id']}", json={"country": "switzerland"}
+    )
+    assert patched.json()["country"] == "Switzerland"
+
+
+def test_unknown_country_kept_as_typed(auth_client):
+    created = auth_client.post(
+        "/api/venues", json={"name": "Django Fest", "country": "Andorra la Vella"}
+    )
+    assert created.json()["country"] == "Andorra la Vella"
+
+    # Clearing the country still works, and blank collapses to null.
+    venue_id = created.json()["id"]
+    assert (
+        auth_client.patch(f"/api/venues/{venue_id}", json={"country": "  "})
+        .json()["country"]
+        is None
+    )
+
+
+def test_listing_venues_runs_a_constant_number_of_queries(auth_client):
+    """The board reloads this listing constantly; serializing each venue's
+    appearances lazily costs a round trip per card, which on the hosted
+    Postgres turns every reload into seconds. Pin the eager-loaded shape."""
+    from sqlalchemy import event
+
+    from app.db import engine
+
+    for i in range(8):
+        venue = auth_client.post("/api/venues", json={"name": f"Venue {i}"}).json()
+        auth_client.post(
+            f"/api/venues/{venue['id']}/artists",
+            json={"name": f"Artist {i}", "year": "2025"},
+        )
+
+    statements: list[str] = []
+
+    def count(conn, cursor, statement, parameters, context, executemany):
+        if statement.lstrip().upper().startswith("SELECT"):
+            statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", count)
+    try:
+        listed = auth_client.get("/api/venues").json()
+    finally:
+        event.remove(engine, "before_cursor_execute", count)
+
+    assert len(listed) == 8
+    assert all(len(v["artists"]) == 1 for v in listed)
+    # band lookup + venues + appearances + artists — not one query per venue.
+    assert len(statements) <= 5, statements

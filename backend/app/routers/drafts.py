@@ -173,8 +173,8 @@ def generate_draft(
     # Programme pages spotted while researching the hook land in the venue's
     # notes, so both flows leave the same paper trail on the card.
     enrichment.add_program_links_to_notes(venue, program_links)
-    if venue.status in _PRE_DRAFT:
-        venue.status = VenueStatus.draft_ready
+    # Generating a draft does NOT advance the card: it only moves to "Draft
+    # ready" once the band validates the draft (see update_draft below).
     db.commit()
     db.refresh(draft)
     return draft
@@ -191,9 +191,16 @@ def update_draft(
     fields = payload.model_dump(exclude_unset=True)
     for field, value in fields.items():
         setattr(draft, field, value)
+    new_status = fields.get("status")
+    # Validating a draft is what advances the card to "Draft ready" — never the
+    # mere act of generating one.
+    if new_status == DraftStatus.approved:
+        venue = db.get(Venue, draft.venue_id)
+        if venue is not None and venue.status in _PRE_DRAFT:
+            venue.status = VenueStatus.draft_ready
     # Marking a draft "sent" reflects that the band actually sent it: advance
     # the venue and stamp today as the last contact.
-    if fields.get("status") == DraftStatus.sent:
+    elif new_status == DraftStatus.sent:
         venue = db.get(Venue, draft.venue_id)
         if venue is not None:
             if venue.status in _PRE_DRAFT | {VenueStatus.draft_ready}:

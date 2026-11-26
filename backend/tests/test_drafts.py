@@ -70,9 +70,7 @@ def test_blank_template_resets_to_default(auth_client):
 # --- Generating a draft ---------------------------------------------------
 
 
-def test_generate_french_draft_moves_card_to_draft_ready(
-    auth_client, band, monkeypatch
-):
+def test_generate_does_not_move_the_card(auth_client, band, monkeypatch):
     _no_key(monkeypatch)
     with SessionLocal() as db:
         venue = _make_venue(db, band.id, name="Jazz à Vienne", country="France")
@@ -90,6 +88,22 @@ def test_generate_french_draft_moves_card_to_draft_ready(
     # No key → no web search → no source.
     assert draft["source"] is None
 
+    with SessionLocal() as db:
+        # Generating alone must NOT advance the card — only validating does.
+        assert db.get(Venue, vid).status == VenueStatus.discovered
+
+
+def test_approving_a_draft_moves_card_to_draft_ready(auth_client, band, monkeypatch):
+    _no_key(monkeypatch)
+    with SessionLocal() as db:
+        vid = _make_venue(db, band.id).id
+    draft_id = auth_client.post(f"/api/venues/{vid}/drafts").json()["id"]
+    # Still not moved by generation.
+    with SessionLocal() as db:
+        assert db.get(Venue, vid).status == VenueStatus.discovered
+
+    approved = auth_client.patch(f"/api/drafts/{draft_id}", json={"status": "approved"})
+    assert approved.json()["status"] == "approved"
     with SessionLocal() as db:
         assert db.get(Venue, vid).status == VenueStatus.draft_ready
 

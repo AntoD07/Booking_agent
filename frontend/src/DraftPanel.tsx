@@ -14,7 +14,7 @@ interface DraftPanelProps {
   venueId: number;
   /** Prefilled as the recipient of the "Open in email" link, if known. */
   contactEmail: string | null;
-  /** Generating or sending moves the card; let the board reload. */
+  /** Validating or sending moves the card; let the board reload. */
   onVenueChanged: () => void;
   onUnauthorized: () => void;
 }
@@ -135,7 +135,8 @@ export default function DraftPanel({
         current.map((d) => (d.id === updated.id ? updated : d)),
       );
       setBusy(false);
-      if (status === "sent") onVenueChanged();
+      // Approving or sending changes the venue's status: reload the board.
+      if (status === "sent" || status === "approved") onVenueChanged();
     } catch (err) {
       fail(err);
     }
@@ -250,7 +251,7 @@ export default function DraftPanel({
                 {active.status !== "approved" && active.status !== "sent" && (
                   <button
                     type="button"
-                    className="draft-btn"
+                    className="draft-approve"
                     disabled={busy}
                     onClick={() => setStatus("approved")}
                   >

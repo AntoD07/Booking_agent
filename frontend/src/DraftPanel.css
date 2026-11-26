@@ -157,6 +157,22 @@
   cursor: default;
 }
 
+/* Validating a draft is the positive, pipeline-advancing action: green. */
+.draft-approve {
+  padding: 0.5rem 0.9rem;
+  background: #3f6b3f;
+  color: var(--paper-raised);
+  border: 1px solid #3f6b3f;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.draft-approve:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .draft-open-email {
   padding: 0.5rem 0.9rem;
   background: var(--paper-raised);

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.audit import apply_update, record_edit
 from app.db import get_db
@@ -28,9 +28,15 @@ def _get_or_404(db: Session, band: Band, venue_id: int) -> Venue:
 def list_venues(
     db: Session = Depends(get_db), band: Band = Depends(current_band)
 ) -> list[Venue]:
+    # Eager-load the appearances (and each artist's name) in two extra
+    # queries. Serializing them lazily costs a round trip per venue, which
+    # on a remote Postgres turns this listing into seconds of latency.
     return list(
         db.scalars(
-            select(Venue).where(Venue.band_id == band.id).order_by(Venue.name)
+            select(Venue)
+            .where(Venue.band_id == band.id)
+            .options(selectinload(Venue.artists).selectinload(VenueArtist.artist))
+            .order_by(Venue.name)
         )
     )
 

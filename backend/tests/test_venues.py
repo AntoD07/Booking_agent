@@ -105,3 +105,36 @@ def test_unknown_country_kept_as_typed(auth_client):
         .json()["country"]
         is None
     )
+
+
+def test_listing_venues_runs_a_constant_number_of_queries(auth_client):
+    """The board reloads this listing constantly; serializing each venue's
+    appearances lazily costs a round trip per card, which on the hosted
+    Postgres turns every reload into seconds. Pin the eager-loaded shape."""
+    from sqlalchemy import event
+
+    from app.db import engine
+
+    for i in range(8):
+        venue = auth_client.post("/api/venues", json={"name": f"Venue {i}"}).json()
+        auth_client.post(
+            f"/api/venues/{venue['id']}/artists",
+            json={"name": f"Artist {i}", "year": "2025"},
+        )
+
+    statements: list[str] = []
+
+    def count(conn, cursor, statement, parameters, context, executemany):
+        if statement.lstrip().upper().startswith("SELECT"):
+            statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", count)
+    try:
+        listed = auth_client.get("/api/venues").json()
+    finally:
+        event.remove(engine, "before_cursor_execute", count)
+
+    assert len(listed) == 8
+    assert all(len(v["artists"]) == 1 for v in listed)
+    # band lookup + venues + appearances + artists — not one query per venue.
+    assert len(statements) <= 5, statements
